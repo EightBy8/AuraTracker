@@ -108,10 +108,3 @@ Logs are printed to the console with color-coded messages for easier identificat
 
 Feel free to fork this repository and make pull requests. Contributions are welcome!
 
-## License
-
-This project is licensed under the MIT License. See the LICENSE file for more details.
-
----
-
-Enjoy your aura journey with the Aura Discord Bot!
