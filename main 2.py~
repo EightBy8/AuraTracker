@@ -161,7 +161,6 @@ async def set_aura(ctx: commands.Context, member: discord.Member, amount: int) -
 
     update_aura(member.id, amount)
     await ctx.send(f"{member.name}'s aura has been set to {amount}!")
-    log(f"Set {member.name}'s aura to {amount} ({member.id}).", "INFO")
 
 
 @bot.command()
@@ -178,7 +177,6 @@ async def reset_aura(ctx: commands.Context, member: discord.Member) -> None:
 
     update_aura(member.id, 0)
     await ctx.send(f"{member.name}'s aura has been reset to 0!")
-    log(f"Reset {member.name}'s aura ({member.id}).", "INFO")
 
 @bot.command()
 async def aura(ctx: commands.Context, member: discord.Member = None) -> None:
