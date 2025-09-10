@@ -101,6 +101,10 @@ def save_history(history: dict) -> None:
     with open(HISTORY_FILE, "w") as f:
         json.dump(history, f, indent=4)
 
+def setAuraValue(user_id: int, amount: int) -> None:
+    aura_data[str(user_id)] = amount
+    save_aura()
+    log(f"Set Aura for {user_id}: {amount}", "INFO")
 
 def update_aura(user_id: int, change: int) -> None:
     """
@@ -134,7 +138,7 @@ async def dailyAuraSnapshot():
 
         await asyncio.sleep(30)
 
-async def dailyLeaderboard(history: dict) -> str:
+async def dailyLeaderboard(history: dict) -> discord.Embed:
     dates = sorted(history.keys())
     if len(dates) < 2:
         return "Not enough data to build daily leaderboard yet!"
@@ -147,46 +151,73 @@ async def dailyLeaderboard(history: dict) -> str:
 
     yesterday_ranks = {user_id: rank for rank, (user_id, _) in enumerate(yesterday_sorted, start=1)}
     #today_ranks = {user_id: rank for rank, (user_id, _) in enumerate(today_sorted, start=1)}
+
+    dailyEmbed = discord.Embed(
+        title = "Aura Rankings",
+        color = discord.Color.blue()
+    )
     
-    leaderboard_lines = []
-        # Loop through today's sorted leaderboard
-    for rank, (user_id, score) in enumerate(today_sorted, start=1):
-        # Fetch the Discord user object by ID
-        user = await bot.fetch_user(int(user_id))
+    for rank, (user_id, score) in enumerate(today_sorted, start=1):          # Loop through today's sorted leaderboard
+        user = await bot.fetch_user(int(user_id))# Fetch the Discord user object by ID
         old_rank = yesterday_ranks.get(user_id, None)
         old_score = yesterday.get(user_id, 0)
         diff = score - old_score #Calculate difference between aura 
 
-
-        if diff > 0:
-            diff_text =(f"+{diff}")
-        elif diff < 0:
-            diff_text=(f"-{diff}")
+        if diff > 0: #Gained Aura
+            diff_text =(f"(+{diff})")
+        elif diff < 0: #Lost Aura
+            diff_text=(f"({diff})")
         else:
             diff_text=""
+
+        if old_rank is None:
+            name = (f'{user.name} NEW✚ ')
+        elif old_rank > rank: 
+            name = (f'{user.name} AURA▲')
+        elif old_rank < rank:
+            name = (f'{user.name} AURA▼')
+        else:
+            name = (f'━ {user.name}')
+
+        if rank == 1:
+            name = f"🥇 {user.name} {old_rank} "
+        elif rank == 2:
+            name = f" 🥈 {user.name} {old_rank} "
+        elif rank == 3:
+            name = f"🥉 {user.name} {old_rank} "
+
+        dailyEmbed.add_field(name=name, value=f"Aura: {score} {diff_text}", inline=False)
+
+    return dailyEmbed
+        
+
+
+"""    
+    leaderboard_lines = []
+
 
         
 
         if old_rank is None:
-            line = f"{rank}. {user.name}: {score} AURA NEW ({diff_text})"
+            line = f"{rank}. {user.name}: {score} NEW✚ {diff_text}"
         elif old_rank > rank:
-            line = f"+{rank}. {user.name}: {score} AURA▲ ({diff_text})"
+            line = f"+{rank}. {user.name}: {score} AURA▲ {diff_text}"
         elif old_rank < rank:
-            line = f"-{rank}. {user.name}: {score} AURA▼ ({diff_text})"
+            line = f"-{rank}. {user.name}: {score} AURA▼ {diff_text}"
         else:
-            line = f"{rank}. {user.name}: {score} AURA━ ({diff_text})"
+            line = f"{rank}. {user.name}: {score} AURA━ {diff_text}"
 
         leaderboard_lines.append(line)
 
     
     return "## Daily Leaderboard\n" + "\n".join(leaderboard_lines)
-
+"""
 
 @bot.command()
 async def test_leaderboard_cmd(ctx):
     history = load_history()
-    leaderboard_text = await dailyLeaderboard(history)
-    await ctx.send(f"```diff\n{leaderboard_text}\n```")
+    dailyEmbed = await dailyLeaderboard(history)
+    await ctx.send(embed=dailyEmbed)
 
 
 @bot.event
@@ -262,10 +293,9 @@ async def set_aura(ctx: commands.Context, member: discord.Member, amount: int) -
     if str(ctx.author.id) != OWNER_ID:
         await ctx.send("You do not have permission to set the aura.")
         return
-
-    update_aura(member.id, amount)
+    setAuraValue(member.id, amount)
     await ctx.send(f"{member.name}'s aura has been set to {amount}!")
-    log(f"Set {member.name}'s aura to {amount} ({member.id}).", "INFO")
+    #log(f"Set {member.name}'s aura to {amount} ({member.id}).", "INFO")
 
 
 @bot.command()
@@ -280,7 +310,7 @@ async def reset_aura(ctx: commands.Context, member: discord.Member) -> None:
         await ctx.send("You do not have permission to reset the aura.")
         return
 
-    update_aura(member.id, 0)
+    setAuraValue(member.id, 0)
     await ctx.send(f"{member.name}'s aura has been reset to 0!")
     log(f"Reset {member.name}'s aura ({member.id}).", "INFO")
 
@@ -300,38 +330,61 @@ async def aura(ctx: commands.Context, member: discord.Member = None) -> None:
 
 @bot.command()
 async def leaderboard(ctx: commands.Context) -> None:
-    """
-    Command to display the leaderboard of aura.
-    Args:
-        ctx (commands.Context): The context of the command.
-    """
-
-
-
     if not aura_data:
         await ctx.send("No aura has been earned yet!")
         log("Leaderboard requested, but no aura exists.", "WARNING")
         return
 
-    sorted_aura = sorted(aura_data.items(), key=lambda x: x[1], reverse=True)
-    leaderboard_lines = []
+    sorted_aura = sorted(aura_data.items(), key=lambda x: x[1], reverse=True)    
+    
+    embed = discord.Embed(
+        title="Aura Leaderboard",
+        description="Test",
+        color=discord.Color.blue()
+    )
+
+    for rank, (targer_id, score) in enumerate(sorted_aura, start=1):
+        target_user = await bot.fetch_user(targer_id)
+
+        if rank == 1:
+            name = (f'🥇 | {target_user.name}')
+        elif rank == 2:
+            name = (f'🥈 | {target_user.name}')
+        elif rank == 3:
+            name = (f'🥉 | {target_user.name}')
+        else:
+            name = (f'{rank} | {target_user.name}')
+        
+        embed.add_field(name=name, value=f"{score} aura", inline=False)
+
+    await ctx.send(embed=embed)
+    log("Leaderboard Embed Shown", "INFO")
+
+
+    """
+    Command to display the leaderboard of aura.
+    Args:
+        ctx (commands.Context): The context of the command.
+    
+
+
+
 
     for rank, (target_id, score) in enumerate(sorted_aura, start=1):
         target_user = await bot.fetch_user(target_id)
         if rank == 1:
-            leaderboard_lines.append(f"{rank}. \\>\\>\\> (**Sigma**) *`{target_user}`*: {score} aura")
+            leaderboard_lines.append(f"{rank}. \\>\\>\\> (**🥇**) *`{target_user}`*: {score} aura")
         elif rank == 2:
-            leaderboard_lines.append(f"{rank}. \\>\\> (**Alpha**) *`{target_user}`*: {score} aura")
+            leaderboard_lines.append(f"{rank}. \\>\\> (**🥈**) *`{target_user}`*: {score} aura")
         elif rank == 3:
-            leaderboard_lines.append(f"{rank}. \\> (**Skibidi**) *`{target_user}`*: {score} aura")
+            leaderboard_lines.append(f"{rank}. \\> (**🥉**) *`{target_user}`*: {score} aura")
         else:
             leaderboard_lines.append(f"{rank}. **{target_user}**: {score} aura")
 
     leaderboard_text = "\n".join(leaderboard_lines)
     await ctx.send(f"# Leaderboard:\n{leaderboard_text}")
     log("Leaderboard displayed with rankings and special text for first place.", "INFO")
-
-
+"""
 
 @bot.command()
 async def modify_aura(ctx: commands.Context, member: discord.Member, amount: int) -> None:
@@ -345,7 +398,11 @@ async def modify_aura(ctx: commands.Context, member: discord.Member, amount: int
     update_aura(member.id, amount)
     new_aura = aura_data.get(str(member.id), 0)
     log(f"Modified {member} aura, they now have {new_aura}", "INFO")
-    await ctx.send(f"{member.name}'s aura has been modified by {amount}. New total: {new_aura}!")
+
+    if amount > 0:
+        await ctx.send(f"{member.name} has received +{amount} Aura. They now have: {new_aura} Aura!")
+    else:
+        await ctx.send(f"{member.name} has lost {amount} Aura. They now have: {new_aura}")
 
 
 # Run the bot
