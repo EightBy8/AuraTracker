@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import json
 import os
 import datetime
+import asyncio
 from colorama import init, Fore, Style
 
 # Initialize colorama
@@ -18,8 +19,9 @@ TOKEN: Final[str] = os.getenv("DISCORD_TOKEN")
 if not TOKEN:
     raise ValueError(Fore.RED + "[ERROR] DISCORD_TOKEN is not set in the environment.")
 
-# File to store aura data
+# File to store aura data / aura daily history
 AURA_FILE: Final[str] = "aura.json"
+HISTORY_FILE: Final[str] = "auraHistory.json"
 
 # Bot setup
 intents: discord.Intents = discord.Intents.default()
@@ -32,7 +34,7 @@ bot: commands.Bot = commands.Bot(command_prefix="?", intents=intents)
 aura_data: Dict[str, int] = {}
 user_reactions: Dict[int, list[str]] = {}
 
-OWNER_ID: Final[str] = "109482185949446144"
+OWNER_ID: Final[str] = "187365945327616000"
 
 
 def log(message: str, level: str = "INFO") -> None:
@@ -68,6 +70,24 @@ def load_aura() -> None:
         aura_data.clear()
         log("No save file found. Initializing aura to empty.", "WARNING")
 
+def load_history() -> dict:
+    if os.path.exists(HISTORY_FILE):
+        with open(HISTORY_FILE, "r") as file:
+            content = file.read().strip()
+            if not content:
+                data = {}
+            else:
+                data = json.loads(content)
+        log("Aura History Loaded", "SUCCESS")
+        return data
+    return{}
+
+
+def ensure_today_history(history: dict) -> None:
+    today = datetime.date.today().strftime("%Y-%m-%d")
+    if today not in history:
+        log("Adding todays date into history", "WARNING")
+        history[today] ={}
 
 def save_aura() -> None:
     """
@@ -76,6 +96,10 @@ def save_aura() -> None:
     with open(AURA_FILE, "w") as file:
         json.dump(aura_data, file)
     log("Aura successfully saved to file", "SUCCESS")
+
+def save_history(history: dict) -> None:
+    with open(HISTORY_FILE, "w") as f:
+        json.dump(history, f, indent=4)
 
 
 def update_aura(user_id: int, change: int) -> None:
@@ -90,6 +114,80 @@ def update_aura(user_id: int, change: int) -> None:
     save_aura()
     log(f"Updated aura for user {user_id}: {aura_data[user_id_str]}", "INFO")
 
+async def dailyAuraSnapshot():
+    await bot.wait_until_ready()
+    while not bot.is_closed():
+        log("Waiting for snapshot...", "INFO")
+        history = load_history()
+        ensure_today_history(history)
+
+        now = datetime.datetime.now()
+        today = datetime.date.today().strftime("%Y-%m-%d")
+        timestamp = now.strftime("%H-%M-%S")
+
+        history[today] = {
+            "time": timestamp,
+            "aura": aura_data.copy()
+        }
+        save_history(history)
+        log("Saving Daily Snapshot", "INFO")
+
+        await asyncio.sleep(30)
+
+async def dailyLeaderboard(history: dict) -> str:
+    dates = sorted(history.keys())
+    if len(dates) < 2:
+        return "Not enough data to build daily leaderboard yet!"
+    
+    yesterday = history[dates[-2]]["aura"]
+    today = history[dates[-1]]["aura"]
+    
+    yesterday_sorted = sorted(yesterday.items(), key=lambda x: x[1], reverse=True)
+    today_sorted = sorted(today.items(), key=lambda x: x[1], reverse=True)
+
+    yesterday_ranks = {user_id: rank for rank, (user_id, _) in enumerate(yesterday_sorted, start=1)}
+    #today_ranks = {user_id: rank for rank, (user_id, _) in enumerate(today_sorted, start=1)}
+    
+    leaderboard_lines = []
+        # Loop through today's sorted leaderboard
+    for rank, (user_id, score) in enumerate(today_sorted, start=1):
+        # Fetch the Discord user object by ID
+        user = await bot.fetch_user(int(user_id))
+        old_rank = yesterday_ranks.get(user_id, None)
+        old_score = yesterday.get(user_id, 0)
+        diff = score - old_score #Calculate difference between aura 
+
+
+        if diff > 0:
+            diff_text =(f"+{diff}")
+        elif diff < 0:
+            diff_text=(f"-{diff}")
+        else:
+            diff_text=""
+
+        
+
+        if old_rank is None:
+            line = f"{rank}. {user.name}: {score} AURA NEW ({diff_text})"
+        elif old_rank > rank:
+            line = f"+{rank}. {user.name}: {score} AURA▲ ({diff_text})"
+        elif old_rank < rank:
+            line = f"-{rank}. {user.name}: {score} AURA▼ ({diff_text})"
+        else:
+            line = f"{rank}. {user.name}: {score} AURA━ ({diff_text})"
+
+        leaderboard_lines.append(line)
+
+    
+    return "## Daily Leaderboard\n" + "\n".join(leaderboard_lines)
+
+
+@bot.command()
+async def test_leaderboard_cmd(ctx):
+    history = load_history()
+    leaderboard_text = await dailyLeaderboard(history)
+    await ctx.send(f"```diff\n{leaderboard_text}\n```")
+
 
 @bot.event
 async def on_ready() -> None:
@@ -97,9 +195,15 @@ async def on_ready() -> None:
     Event triggered when the bot is ready.
     """
     load_aura()
+    history = load_history()
+    ensure_today_history(history)
+    save_history(history)
+    bot.loop.create_task(dailyAuraSnapshot())
     log(f"Bot {bot.user} is now running!", "SUCCESS")
 
-
+"""
+Check for reaction and add aura
+"""
 @bot.event
 async def on_reaction_add(reaction: discord.Reaction, user: discord.User) -> None:
     target = reaction.message.author
@@ -201,6 +305,9 @@ async def leaderboard(ctx: commands.Context) -> None:
     Args:
         ctx (commands.Context): The context of the command.
     """
+
+
+
     if not aura_data:
         await ctx.send("No aura has been earned yet!")
         log("Leaderboard requested, but no aura exists.", "WARNING")
@@ -223,6 +330,22 @@ async def leaderboard(ctx: commands.Context) -> None:
     leaderboard_text = "\n".join(leaderboard_lines)
     await ctx.send(f"# Leaderboard:\n{leaderboard_text}")
     log("Leaderboard displayed with rankings and special text for first place.", "INFO")
+
+
+
+@bot.command()
+async def modify_aura(ctx: commands.Context, member: discord.Member, amount: int) -> None:
+    """
+    Add or subtract aura from a user’s current amount (only allowed by OWNER_ID).
+    Positive `amount` adds aura, negative subtracts.
+    """
+    if str(ctx.author.id) != OWNER_ID:
+        await ctx.send("You do not have permission to modify aura.")
+        return
+    update_aura(member.id, amount)
+    new_aura = aura_data.get(str(member.id), 0)
+    log(f"Modified {member} aura, they now have {new_aura}", "INFO")
+    await ctx.send(f"{member.name}'s aura has been modified by {amount}. New total: {new_aura}!")
 
 
 # Run the bot
