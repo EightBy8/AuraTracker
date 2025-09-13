@@ -138,7 +138,7 @@ async def dailyAuraSnapshot():
 
         await asyncio.sleep(30)
 
-async def dailyLeaderboard(history: dict) -> discord.Embed:
+async def dailyLeaderboard(history: dict) -> discord.Embed: 
     dates = sorted(history.keys())
     if len(dates) < 2:
         return "Not enough data to build daily leaderboard yet!"
@@ -153,12 +153,15 @@ async def dailyLeaderboard(history: dict) -> discord.Embed:
     #today_ranks = {user_id: rank for rank, (user_id, _) in enumerate(today_sorted, start=1)}
 
     dailyEmbed = discord.Embed(
-        title = "Aura Rankings",
-        color = discord.Color.blue()
-    )
+        title = "Daily Aura Ranking",
+        description = "--------------------------------------",
+        color = discord.Color(0xFFFFFF))
     
+    dailyEmbed.set_footer(text = (f'Updated: {dates[-1]}'))
+
     for rank, (user_id, score) in enumerate(today_sorted, start=1):          # Loop through today's sorted leaderboard
         user = await bot.fetch_user(int(user_id))# Fetch the Discord user object by ID
+        user_name = str(user.name).capitalize()
         old_rank = yesterday_ranks.get(user_id, None)
         old_score = yesterday.get(user_id, 0)
         diff = score - old_score #Calculate difference between aura 
@@ -171,20 +174,24 @@ async def dailyLeaderboard(history: dict) -> discord.Embed:
             diff_text=""
 
         if old_rank is None:
-            name = (f'{user.name} NEW✚ ')
+            auraRank = ("NEW✚")
+            name = (f'{rank} > {user_name} {auraRank}')
         elif old_rank > rank: 
-            name = (f'{user.name} AURA▲')
+            auraRank = ("AURA▲")
+            name = (f'{rank} > {user_name} {auraRank}')
         elif old_rank < rank:
-            name = (f'{user.name} AURA▼')
+            auraRank = ("AURA▼")
+            name = (f'{rank} > {user_name} {auraRank}')
         else:
-            name = (f'━ {user.name}')
+            auraRank = ("AURA━")
+            name = (f'{rank} > {user_name} {auraRank}')
 
         if rank == 1:
-            name = f"🥇 {user.name} {old_rank} "
+            name = f"🥇 > {user_name} {auraRank} "
         elif rank == 2:
-            name = f" 🥈 {user.name} {old_rank} "
+            name = f" 🥈 > {user_name} {auraRank} "
         elif rank == 3:
-            name = f"🥉 {user.name} {old_rank} "
+            name = f"🥉 > {user_name} {auraRank} "
 
         dailyEmbed.add_field(name=name, value=f"Aura: {score} {diff_text}", inline=False)
 
@@ -339,23 +346,24 @@ async def leaderboard(ctx: commands.Context) -> None:
     
     embed = discord.Embed(
         title="Aura Leaderboard",
-        description="Test",
-        color=discord.Color.blue()
+        description = "--------------------------------------",
+        color=discord.Color(0x3F00FF)
     )
 
     for rank, (targer_id, score) in enumerate(sorted_aura, start=1):
         target_user = await bot.fetch_user(targer_id)
+        user_name = str(target_user.name).capitalize()
 
         if rank == 1:
-            name = (f'🥇 | {target_user.name}')
+            name = (f'🥇 > {user_name}')
         elif rank == 2:
-            name = (f'🥈 | {target_user.name}')
+            name = (f'🥈 > {user_name}')
         elif rank == 3:
-            name = (f'🥉 | {target_user.name}')
+            name = (f'🥉 > {user_name}')
         else:
-            name = (f'{rank} | {target_user.name}')
+            name = (f'{rank} > {user_name}')
         
-        embed.add_field(name=name, value=f"{score} aura", inline=False)
+        embed.add_field(name=name, value=f"Aura: {score}", inline=False)
 
     await ctx.send(embed=embed)
     log("Leaderboard Embed Shown", "INFO")
