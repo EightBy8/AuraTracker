@@ -50,6 +50,7 @@ python main.py
 .
 ├── main.py           # Main bot file containing bot logic and commands
 ├── aura.json         # File where aura data is stored
+├── auraHistory.json  # File where aura snapshots is stored
 ├── .env              # Environment file storing your Discord bot token
 └── requirements.txt  # List of required packages (for pip install)
 ```
@@ -76,11 +77,8 @@ Example:
 ?leaderboard
 ```
 
-The bot will display the top users with the most aura, with special titles for the top three:
 
-1. **Sigma** - Highest aura.
-2. **Alpha** - Second highest aura.
-3. **Skibidi** - Third highest aura.
+
 
 ### Reactions to Update Aura
 
