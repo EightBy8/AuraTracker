@@ -64,8 +64,8 @@ def load_aura() -> None:
     global aura
     if os.path.exists(AURA_FILE):
         with open(AURA_FILE, "r") as file:
-             aura_data.update(json.load(file))
-             log("Aura successfully loaded", "SUCCESS")
+            aura_data.update(json.load(file))
+            log("Aura successfully loaded", "SUCCESS")
     else:
         aura_data.clear()
         log("No save file found. Initializing aura to empty.", "WARNING")
