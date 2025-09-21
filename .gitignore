@@ -3,4 +3,6 @@
 .vscode
 .env
 
+venv
+
 *.json
