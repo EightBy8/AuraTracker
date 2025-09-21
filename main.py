@@ -11,7 +11,7 @@ import asyncio
 from colorama import init, Fore, Style
 
 # Initialize colorama
-init(autoreset=True)
+init(autoreset=True, strip=False)
 
 # Load environment variables
 load_dotenv()
@@ -34,7 +34,7 @@ bot: commands.Bot = commands.Bot(command_prefix="?", intents=intents, help_comma
 aura_data: Dict[str, int] = {}
 user_reactions: Dict[int, list[str]] = {}
 
-OWNER_ID: Final[str] = "187365945327616000","109482185949446144"
+OWNER_ID: Final[list[str]] = "187365945327616000","109482185949446144"
 
 
 def log(message: str, level: str = "INFO") -> None:
@@ -64,8 +64,8 @@ def load_aura() -> None:
     global aura
     if os.path.exists(AURA_FILE):
         with open(AURA_FILE, "r") as file:
-            aura_data.update(json.load(file))
-        log("Aura successfully loaded", "SUCCESS")
+             aura_data.update(json.load(file))
+             log("Aura successfully loaded", "SUCCESS")
     else:
         aura_data.clear()
         log("No save file found. Initializing aura to empty.", "WARNING")
@@ -120,7 +120,7 @@ def update_aura(user_id: int, change: int) -> None:
 
 async def dailyAuraSnapshot():
     await bot.wait_until_ready()
-    targetTime = datetime.time(hour=14, minute=59, second=0)
+    targetTime = datetime.time(hour=9, minute=29, second=0)
 
     while not bot.is_closed():
 
@@ -218,8 +218,10 @@ async def dailyLeaderboard(history: dict) -> discord.Embed:
         
 async def postDailyLeaderboard():
     await bot.wait_until_ready()
-    channel = bot.get_channel(1369164770560966819)
-    targetTime = datetime.time(hour=17, minute=0, second=0) #Time when daily embed gets posted CAN BE CHANGED
+    channel = bot.get_channel(622609287914717231)
+    init(strip=False)
+    init(strip=False)
+    targetTime = datetime.time(hour=9, minute=30, second=0) #Time when daily embed gets posted CAN BE CHANGED
 
     while not bot.is_closed():
         now = datetime.datetime.now()
@@ -272,7 +274,7 @@ async def postDailyLeaderboard():
 
 @bot.command()
 async def daily_leaderboard(ctx):
-    targetTime = datetime.time(hour=17, minute=0, second=0) #Time when daily embed gets posted CAN BE CHANGED
+    targetTime = datetime.time(hour=9, minute=30, second=0) #Time when daily embed gets posted CAN BE CHANGED
     now = datetime.datetime.now()
     nextRun = datetime.datetime.combine(now.date(), targetTime)
 
@@ -360,7 +362,7 @@ async def set_aura(ctx: commands.Context, member: discord.Member, amount: int) -
         member (discord.Member): The member whose aura is to be set.
         amount (int): The amount to set the user's aura to.
     """
-    if str(ctx.author.id) != OWNER_ID:
+    if str(ctx.author.id) not in OWNER_ID:
         await ctx.send("You do not have permission to set the aura.")
         return
     setAuraValue(member.id, amount)
@@ -376,7 +378,7 @@ async def reset_aura(ctx: commands.Context, member: discord.Member) -> None:
         ctx (commands.Context): The context of the command.
         member (discord.Member): The member whose aura is to be reset.
     """
-    if str(ctx.author.id) != OWNER_ID:
+    if str(ctx.author.id) not in OWNER_ID:
         await ctx.send("You do not have permission to reset the aura.")
         return
 
@@ -463,7 +465,7 @@ async def modify_aura(ctx: commands.Context, member: discord.Member, amount: int
     Add or subtract aura from a user’s current amount (only allowed by OWNER_ID).
     Positive `amount` adds aura, negative subtracts.
     """
-    if str(ctx.author.id) != OWNER_ID:
+    if str(ctx.author.id) not in OWNER_ID:
         await ctx.send("You do not have permission to modify aura.")
         return
     update_aura(member.id, amount)
