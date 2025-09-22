@@ -22,6 +22,7 @@ if not TOKEN:
 # File to store aura data / aura daily history
 AURA_FILE: Final[str] = "aura.json"
 HISTORY_FILE: Final[str] = "auraHistory.json"
+AURACOUNTER_FILE: Final[str] = "auraCount.json"
 
 # Bot setup
 intents: discord.Intents = discord.Intents.default()
@@ -33,6 +34,7 @@ bot: commands.Bot = commands.Bot(command_prefix="?", intents=intents, help_comma
 # aura data storage
 aura_data: Dict[str, int] = {}
 user_reactions: Dict[int, list[str]] = {}
+userAruaCount: Dict[str, Dict[str, str]] = {}
 
 OWNER_ID: Final[list[str]] = "187365945327616000","109482185949446144"
 
@@ -59,18 +61,22 @@ def log(message: str, level: str = "INFO") -> None:
 
 def load_aura() -> None:
     """
-    Load aura from the JSON file if it exists, else initialize an empty dictionary.
+    Load aura from the JSON file if it exists, else initialize an empty dictionary. FOR AURA LEADERBOARD
     """
     global aura
     if os.path.exists(AURA_FILE):
         with open(AURA_FILE, "r") as file:
             aura_data.update(json.load(file))
-            log("Aura successfully loaded", "SUCCESS")
+            log("'aura' successfully loaded", "SUCCESS")
     else:
         aura_data.clear()
+        save_aura()
         log("No save file found. Initializing aura to empty.", "WARNING")
 
 def load_history() -> dict:
+    """
+    Load aura from the JSON file if it exists, else initialize an empty dictionary. FOR AURA DAILY BOARD
+    """
     if os.path.exists(HISTORY_FILE):
         with open(HISTORY_FILE, "r") as file:
             content = file.read().strip()
@@ -78,9 +84,38 @@ def load_history() -> dict:
                 data = {}
             else:
                 data = json.loads(content)
-        log("Aura History Loaded", "SUCCESS")
+        log("'auraHistory' Loaded", "SUCCESS")
         return data
     return{}
+
+def loadAuraCount() -> None:
+    global userAruaCount
+    if os.path.exists(AURACOUNTER_FILE):
+        with open(AURACOUNTER_FILE, "r") as file:
+            userAruaCount = json.load(file)
+            log("'auraCount' Data Loaded", "SUCCESS")
+    else:
+        userAruaCount = {}
+        saveAuraCount()
+        log("No 'auraCount' file found, creating one...", "WARNING")
+
+
+def save_aura() -> None:
+    """
+    Save the current aura dictionary to the JSON file.
+    """
+    with open(AURA_FILE, "w") as file:
+        json.dump(aura_data, file, indent=4)
+    log("Aura successfully saved to file", "SUCCESS")
+
+def save_history(history: dict) -> None:
+    with open(HISTORY_FILE, "w") as file:
+        json.dump(history, file, indent=4)
+
+def saveAuraCount() -> None:
+    with open(AURACOUNTER_FILE, "w") as file:
+        json.dump(userAruaCount, file, indent=4)
+    log("Saved Negative Aura Count To File", "SUCCESS")
 
 
 def ensure_today_history(history: dict) -> None:
@@ -89,34 +124,23 @@ def ensure_today_history(history: dict) -> None:
         log("Adding todays date into history", "WARNING")
         history[today] ={}
 
-def save_aura() -> None:
-    """
-    Save the current aura dictionary to the JSON file.
-    """
-    with open(AURA_FILE, "w") as file:
-        json.dump(aura_data, file)
-    log("Aura successfully saved to file", "SUCCESS")
-
-def save_history(history: dict) -> None:
-    with open(HISTORY_FILE, "w") as f:
-        json.dump(history, f, indent=4)
-
 def setAuraValue(user_id: int, amount: int) -> None:
     aura_data[str(user_id)] = amount
     save_aura()
     log(f"Set Aura for {user_id}: {amount}", "INFO")
 
-def update_aura(user_id: int, change: int) -> None:
+def update_aura(user: discord.user, change: int) -> None:
     """
     Update the aura for a user by a given change value and save to file.
     Args:
         user_id (int): The Discord user's ID.
         change (int): The amount to change the user's aura by.
     """
-    user_id_str = str(user_id)
+    user_id_str = str(user.id)
     aura_data[user_id_str] = aura_data.get(user_id_str, 0) + change
     save_aura()
-    log(f"Updated aura for user {user_id}: {aura_data[user_id_str]}", "INFO")
+
+    log(f"Updated aura for {user.name.capitalize()} ({user.id}) ({aura_data[user_id_str]})", "INFO")
 
 async def dailyAuraSnapshot():
     await bot.wait_until_ready()
@@ -297,6 +321,7 @@ async def on_ready() -> None:
     Event triggered when the bot is ready.
     """
     load_aura()
+    loadAuraCount()
     history = load_history()
     ensure_today_history(history)
     save_history(history)
@@ -309,9 +334,10 @@ Check for reaction and add aura
 """
 @bot.event
 async def on_reaction_add(reaction: discord.Reaction, user: discord.User) -> None:
+    sender = user
     target = reaction.message.author
-    if user.bot or target.bot or user == target:
-        return  # Ignore bot reactions and self-reactions
+#    if user.bot or target.bot or user == target:
+#        return  # Ignore bot reactions and self-reactions 
 
     emoji_name = reaction.emoji if isinstance(reaction.emoji, str) else reaction.emoji.name
     user_id = user.id
@@ -323,9 +349,28 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.User) -> Non
         user_reactions[user_id].append(emoji_name)
 
     if emoji_name == "aura":
-        update_aura(target.id, 1)
+        update_aura(target, 1)
+        senderID = str(sender.id)
+        if senderID not in userAruaCount:
+            userAruaCount[senderID] = {"POS": 0, "NEG": 0}
+
+        senderID = str(sender.id)
+        currentPos = userAruaCount[senderID]["POS"]
+        userAruaCount[senderID]["POS"] = max(0, currentPos +1)
+        saveAuraCount()
+        log(f"Added +1 to {sender.name.capitalize()}'s Positive Aura Count ")
+
     elif emoji_name == "auradown":
-        update_aura(target.id, -1)
+        update_aura(target, -1)
+        senderID = str(sender.id)
+        if senderID not in userAruaCount:
+            userAruaCount[senderID] = {"POS": 0, "NEG": 0}
+
+        senderID = str(sender.id)
+        currentNeg = userAruaCount[senderID]["NEG"]
+        userAruaCount[senderID]["NEG"] = max(0, currentNeg +1)
+        saveAuraCount()
+        log(f"Added +1 to {sender.name.capitalize()}'s Negative Aura Count ")
 
     current_aura = aura_data.get(str(target.id), 0)
     log(f"{target.name} ({target.id}) now has {current_aura} aura.", "INFO")
@@ -333,9 +378,10 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.User) -> Non
 
 @bot.event
 async def on_reaction_remove(reaction: discord.Reaction, user: discord.User) -> None:
+    sender = user
     target = reaction.message.author
-    if user.bot or target.bot or user == target:
-        return  # Ignore bot reactions and self-reactions
+#    if user.bot or target.bot or user == target:
+#        return  # Ignore bot reactions and self-reactions
 
     emoji_name = reaction.emoji if isinstance(reaction.emoji, str) else reaction.emoji.name
     user_id = user.id
@@ -343,15 +389,34 @@ async def on_reaction_remove(reaction: discord.Reaction, user: discord.User) -> 
     # Validate and update aura
     if user_id in user_reactions and emoji_name in user_reactions[user_id]:
         if emoji_name == "aura":
-            update_aura(target.id, -1)
+            update_aura(target, -1)
+            senderID = str(sender.id)
+            if senderID not in userAruaCount:
+                userAruaCount[senderID] = {"POS": 0, "NEG": 0}
+
+            senderID = str(sender.id)
+            currentPos = userAruaCount[senderID]["POS"]
+            userAruaCount[senderID]["POS"] = max(0, currentPos -1)
+            saveAuraCount()
+            log(f"Removed -1 from {sender.name.capitalize()}'s Given Positive Aura Count ({currentPos})")
+            
         elif emoji_name == "auradown":
-            update_aura(target.id, 1)
+            update_aura(target, 1)
+            senderID = str(sender.id)
+            if senderID not in userAruaCount:
+                userAruaCount[senderID] = {"POS": 0, "NEG": 0}
+
+            senderID = str(sender.id)
+            currentNeg = userAruaCount[senderID]["NEG"]
+            userAruaCount[senderID]["NEG"] = max(0, currentNeg - 1)
+            saveAuraCount()
+            log(f"-1 To {sender.name.capitalize()}'s Given Negative Aura Count ({currentNeg}) ")
 
         # Remove the reaction from tracking
         user_reactions[user_id].remove(emoji_name)
-
+            
     current_aura = aura_data.get(str(target.id), 0)
-    log(f"{target.name} ({target.id}) now has {current_aura} aura after reaction removed.", "INFO")
+    #log(f"{target.name} ({target.id}) now has {current_aura} aura after reaction removed.", "INFO")
 
 @bot.command()
 async def set_aura(ctx: commands.Context, member: discord.Member, amount: int) -> None:
@@ -478,23 +543,54 @@ async def modify_aura(ctx: commands.Context, member: discord.Member, amount: int
         await ctx.send(f"<@{member.id}> has lost {amount} Aura. They now have: {new_aura}")
 
 @bot.command()
+async def dsleaderboard(ctx: commands.Context) -> None:
+    if not userAruaCount:
+        await ctx.send("Nobody has given out negative aura yet...")
+        return
+    
+    sortedAura = sorted(userAruaCount.items(), key=lambda x: x[1]["NEG"], reverse=True)
+
+    embed = discord.Embed(
+        title="Negative Aura Leaderboard",
+        description="Leaderboard for people who need to lay off the -aura button",
+        color=discord.Color(0xFFEA00)
+    )
+    
+    for rank, (user_id_str, score) in enumerate(sortedAura, start=1):
+        target_user = await bot.fetch_user(int(user_id_str))
+        user_name = str(target_user.name).capitalize()
+
+        if rank == 1:
+            name = f'🍆 > {user_name}'
+        elif rank == 2:
+            name = f'🚴 > {user_name}'
+        elif rank == 3:
+            name = f'🤸 > {user_name}'
+        else:
+            name = f'{rank} > {user_name}'
+        
+        embed.add_field(name=name, value=f"Negative Aura Given: {score}", inline=False)
+
+    await ctx.send(embed=embed)
+
+@bot.command()
 async def help(ctx: commands.Context) -> None:
-    helpText = """
-# Aura Bot Commands
+    helpText ="""
+        # Aura Bot Commands
 
-## User Commands
-```
-?aura [Member] - Checks user's aura
-?leaderboard - Show the leaderboard
-```
+        ## User Commands
+        ```
+        ?aura [Member] - Checks user's aura
+        ?leaderboard - Show the leaderboard
+        ```
 
-## Admin Commands
-```
-?set_aura [member] [amount] - Set aura 
-?reset_aura [member] - Reset aura
-?modify_aura [member] [amount] - Add/subtract aura 
-```
-"""
+        ## Admin Commands
+        ```
+        ?set_aura [member] [amount] - Set aura 
+        ?reset_aura [member] - Reset aura
+        ?modify_aura [member] [amount] - Add/subtract aura 
+        ```
+        """
 
     await ctx.send(helpText)
 
