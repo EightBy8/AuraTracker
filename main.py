@@ -20,7 +20,7 @@ if not TOKEN:
     raise ValueError(Fore.RED + "[ERROR] DISCORD_TOKEN is not set in the environment.")
 
 # File to store aura data / aura daily history
-AURA_FILE: Final[str] = "aura.json"
+AURA_FILE: Final[str] = "aura.json" 
 HISTORY_FILE: Final[str] = "auraHistory.json"
 AURACOUNTER_FILE: Final[str] = "auraCount.json"
 
@@ -57,7 +57,6 @@ def log(message: str, level: str = "INFO") -> None:
         print(Fore.YELLOW + f"[{timestamp}] [WARNING] {message}")
     else:
         print(f"[{timestamp}] [{level}] {message}")
-
 
 def load_aura() -> None:
     """
@@ -99,7 +98,6 @@ def loadAuraCount() -> None:
         saveAuraCount()
         log("No 'auraCount' file found, creating one...", "WARNING")
 
-
 def save_aura() -> None:
     """
     Save the current aura dictionary to the JSON file.
@@ -116,7 +114,6 @@ def saveAuraCount() -> None:
     with open(AURACOUNTER_FILE, "w") as file:
         json.dump(userAruaCount, file, indent=4)
     log("Saved Negative Aura Count To File", "SUCCESS")
-
 
 def ensure_today_history(history: dict) -> None:
     today = datetime.date.today().strftime("%Y-%m-%d")
@@ -141,6 +138,7 @@ def update_aura(user: discord.user, change: int) -> None:
     save_aura()
 
     log(f"Updated aura for {user.name.capitalize()} ({user.id}) ({aura_data[user_id_str]})", "INFO")
+
 
 async def dailyAuraSnapshot():
     await bot.wait_until_ready()
@@ -178,7 +176,6 @@ async def dailyAuraSnapshot():
 
         save_history(history)
         log("Saving Daily Snapshot", "SUCCESS")
-
 
 async def dailyLeaderboard(history: dict) -> discord.Embed: 
     dates = sorted(history.keys())
@@ -273,48 +270,6 @@ async def postDailyLeaderboard():
             await channel.send(dailyEmbed)  # fallback for string return
 
 
-
-
-"""    
-    leaderboard_lines = []
-
-
-        
-
-        if old_rank is None:
-            line = f"{rank}. {user.name}: {score} NEW✚ {diff_text}"
-        elif old_rank > rank:
-            line = f"+{rank}. {user.name}: {score} AURA▲ {diff_text}"
-        elif old_rank < rank:
-            line = f"-{rank}. {user.name}: {score} AURA▼ {diff_text}"
-        else:
-            line = f"{rank}. {user.name}: {score} AURA━ {diff_text}"
-
-        leaderboard_lines.append(line)
-
-    
-    return "## Daily Leaderboard\n" + "\n".join(leaderboard_lines)
-"""
-
-@bot.command()
-async def daily_leaderboard(ctx):
-    targetTime = datetime.time(hour=9, minute=30, second=0) #Time when daily embed gets posted CAN BE CHANGED
-    now = datetime.datetime.now()
-    nextRun = datetime.datetime.combine(now.date(), targetTime)
-
-    if now >= nextRun: #If the time has already passed the target time
-        nextRun += datetime.timedelta(days=1) #Push the embed post a day
-
-    waitSeconds = (nextRun - now).total_seconds() # How many seconds until next day
-    
-    hours = int(waitSeconds // 3600)
-    minutes = int((waitSeconds % 3600) // 60)
-    seconds = int(waitSeconds % 60)
-
-    await ctx.send(f'Time Until Daily Leaderboard: {hours}h {minutes}m {seconds}s')
-
-
-
 @bot.event
 async def on_ready() -> None:
     """
@@ -329,15 +284,13 @@ async def on_ready() -> None:
     bot.loop.create_task(postDailyLeaderboard())
     log(f"Bot {bot.user} is now running!", "SUCCESS")
 
-"""
-Check for reaction and add aura
-"""
 @bot.event
 async def on_reaction_add(reaction: discord.Reaction, user: discord.User) -> None:
+    """
+    Check for reaction and add aura
+    """
     sender = user
     target = reaction.message.author
-#    if user.bot or target.bot or user == target:
-#        return  # Ignore bot reactions and self-reactions 
 
     emoji_name = reaction.emoji if isinstance(reaction.emoji, str) else reaction.emoji.name
     user_id = user.id
@@ -355,7 +308,7 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.User) -> Non
             userAruaCount[senderID] = {"POS": 0, "NEG": 0}
 
         senderID = str(sender.id)
-        currentPos = userAruaCount[senderID]["POS"]
+        currentPos = userAruaCount[senderID]["POS"] #Amount of postive aura a user has sent
         userAruaCount[senderID]["POS"] = max(0, currentPos +1)
         saveAuraCount()
         log(f"Added +1 to {sender.name.capitalize()}'s Positive Aura Count ")
@@ -363,25 +316,23 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.User) -> Non
     elif emoji_name == "auradown":
         update_aura(target, -1)
         senderID = str(sender.id)
-        if senderID not in userAruaCount:
+        if senderID not in userAruaCount: #If User has not sent any aura; Init and set both counts to 0
             userAruaCount[senderID] = {"POS": 0, "NEG": 0}
 
         senderID = str(sender.id)
-        currentNeg = userAruaCount[senderID]["NEG"]
-        userAruaCount[senderID]["NEG"] = max(0, currentNeg +1)
+        currentNeg = userAruaCount[senderID]["NEG"] #Amount of negaitve aura a user has sent
+        userAruaCount[senderID]["NEG"] = max(0, currentNeg +1) #userAruaCount won't go below 0
         saveAuraCount()
         log(f"Added +1 to {sender.name.capitalize()}'s Negative Aura Count ")
 
     current_aura = aura_data.get(str(target.id), 0)
     log(f"{target.name} ({target.id}) now has {current_aura} aura.", "INFO")
 
-
 @bot.event
 async def on_reaction_remove(reaction: discord.Reaction, user: discord.User) -> None:
     sender = user
     target = reaction.message.author
-#    if user.bot or target.bot or user == target:
-#        return  # Ignore bot reactions and self-reactions
+
 
     emoji_name = reaction.emoji if isinstance(reaction.emoji, str) else reaction.emoji.name
     user_id = user.id
@@ -419,6 +370,23 @@ async def on_reaction_remove(reaction: discord.Reaction, user: discord.User) -> 
     #log(f"{target.name} ({target.id}) now has {current_aura} aura after reaction removed.", "INFO")
 
 @bot.command()
+async def daily_leaderboard(ctx):
+    targetTime = datetime.time(hour=9, minute=30, second=0) #Time when daily embed gets posted CAN BE CHANGED
+    now = datetime.datetime.now()
+    nextRun = datetime.datetime.combine(now.date(), targetTime)
+
+    if now >= nextRun: #If the time has already passed the target time
+        nextRun += datetime.timedelta(days=1) #Push the embed post a day
+
+    waitSeconds = (nextRun - now).total_seconds() # How many seconds until next day
+    
+    hours = int(waitSeconds // 3600)
+    minutes = int((waitSeconds % 3600) // 60)
+    seconds = int(waitSeconds % 60)
+
+    await ctx.send(f'Time Until Daily Leaderboard: {hours}h {minutes}m {seconds}s')
+
+@bot.command()
 async def set_aura(ctx: commands.Context, member: discord.Member, amount: int) -> None:
     """
     Command to set the aura of a user (only allowed by the special user).
@@ -433,7 +401,6 @@ async def set_aura(ctx: commands.Context, member: discord.Member, amount: int) -
     setAuraValue(member.id, amount)
     await ctx.send(f"<@{member.id}>'s aura has been set to {amount}!")
     #log(f"Set {member.name}'s aura to {amount} ({member.id}).", "INFO")
-
 
 @bot.command()
 async def reset_aura(ctx: commands.Context, member: discord.Member) -> None:
@@ -463,7 +430,6 @@ async def aura(ctx: commands.Context, member: discord.Member = None) -> None:
     user_aura = aura_data.get(str(member.id), 0)
     await ctx.send(f"<@{member.id}>'s aura is: {user_aura}!")
     log(f"Aura requested for {member.name} ({member.id}).", "INFO")
-
 
 @bot.command()
 async def leaderboard(ctx: commands.Context) -> None:
