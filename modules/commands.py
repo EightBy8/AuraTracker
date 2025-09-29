@@ -112,7 +112,7 @@ async def dslb(ctx: commands.Context) -> None:
     sorted_neg = sorted(neg_scores.items(), key=lambda x: x[1], reverse=True)
 
     embed = Embed(
-        title="Negative Aura Leaderboard",
+        title="Leaderboard of Dicksuck",
         description="Leaderboard for people who need to lay off the -aura button",
     )
     for rank, (uid, neg_count) in enumerate(sorted_neg, start=1):

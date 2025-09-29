@@ -1,4 +1,3 @@
-# modules/daily_tasks.py
 import asyncio
 import datetime
 import os
@@ -38,20 +37,30 @@ def save_config() -> None:
 async def daily_aura_snapshot() -> None:
     """Take a daily snapshot of aura_data at ~09:29 local time and persist to history file."""
     await bot.wait_until_ready()
+
+    # Run once immediately for debugging
+    log("Running first daily_aura_snapshot immediately (debug)", "INFO")
+    await take_snapshot()
+
     while not bot.is_closed():
         wait_seconds: float = seconds_until(9, 29)
         hours, minutes, seconds = int(wait_seconds // 3600), int((wait_seconds % 3600) // 60), int(wait_seconds % 60)
-        log(f"Waiting {hours}h {minutes}m {seconds}s until next snapshot", "WARNING")
+        log(f"[Snapshot] Waiting {hours}h {minutes}m {seconds}s until next run", "WARNING")
         await asyncio.sleep(wait_seconds)
 
-        log("Taking daily snapshot...", "INFO")
-        history: dict = load_history()
-        ensure_today(history)
-        today: str = datetime.date.today().strftime("%Y-%m-%d")
-        timestamp: str = datetime.datetime.now().strftime("%H-%M-%S")
-        history[today] = {"time": timestamp, "aura": aura_data.copy()}
-        save_json(HISTORY_FILE, history)
-        log("Daily snapshot saved", "SUCCESS")
+        await take_snapshot()
+
+
+async def take_snapshot() -> None:
+    """Helper function to take a snapshot immediately."""
+    log("Taking daily snapshot...", "INFO")
+    history: dict = load_history()
+    ensure_today(history)
+    today: str = datetime.date.today().strftime("%Y-%m-%d")
+    timestamp: str = datetime.datetime.now().strftime("%H-%M-%S")
+    history[today] = {"time": timestamp, "aura": aura_data.copy()}
+    save_json(HISTORY_FILE, history)
+    log("Daily snapshot saved", "SUCCESS")
 
 
 async def daily_leaderboard_embed() -> Embed | str:
@@ -101,20 +110,37 @@ async def daily_leaderboard_embed() -> Embed | str:
 async def post_daily_leaderboard() -> None:
     """Post the daily leaderboard to the configured channel at ~09:30 local time."""
     await bot.wait_until_ready()
-    load_config()  # ensure CHANNEL_ID is loaded
-    while not bot.is_closed():
-        await asyncio.sleep(seconds_until(9, 30))
-        if CHANNEL_ID is None:
-            log("CHANNEL_ID not set. Skipping daily leaderboard post.", "WARNING")
-            continue
-        channel: TextChannel | None = bot.get_channel(CHANNEL_ID)  # type: ignore
-        if channel is None:
-            log(f"Channel {CHANNEL_ID} not found. Cannot post daily leaderboard.", "ERROR")
-            continue
+    load_config()
 
-        embed_or_msg: Embed | str = await daily_leaderboard_embed()
-        if isinstance(embed_or_msg, Embed):
-            await channel.send("Today's aura standings:")
-            await channel.send(embed=embed_or_msg)
-        else:
-            await channel.send(embed_or_msg)
+    # Run once immediately for debugging
+    log("Running first post_daily_leaderboard immediately (debug)", "INFO")
+    await send_leaderboard()
+
+    while not bot.is_closed():
+        wait_seconds: float = seconds_until(9, 30)
+        # wait_seconds: float = 10
+        hours, minutes, seconds = int(wait_seconds // 3600), int((wait_seconds % 3600) // 60), int(wait_seconds % 60)
+        log(f"[Leaderboard] Waiting {hours}h {minutes}m {seconds}s until next post", "WARNING")
+        await asyncio.sleep(wait_seconds)
+
+        await send_leaderboard()
+
+
+async def send_leaderboard() -> None:
+    """Helper function to send the leaderboard once."""
+    if CHANNEL_ID is None:
+        log("CHANNEL_ID not set. Skipping daily leaderboard post.", "WARNING")
+        return
+
+    channel: TextChannel | None = bot.get_channel(CHANNEL_ID)  # type: ignore
+    if channel is None:
+        log(f"Channel {CHANNEL_ID} not found. Cannot post daily leaderboard.", "ERROR")
+        return
+
+    embed_or_msg: Embed | str = await daily_leaderboard_embed()
+    if isinstance(embed_or_msg, Embed):
+        await channel.send("Today's aura standings:")
+        await channel.send(embed=embed_or_msg)
+    else:
+        await channel.send(embed_or_msg)
+
