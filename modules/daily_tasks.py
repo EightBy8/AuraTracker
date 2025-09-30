@@ -40,9 +40,9 @@ async def daily_aura_snapshot() -> None:
     """Take a daily snapshot of aura_data at ~09:29 local time and persist to history file."""
     await bot.wait_until_ready()
 
-    # Run once immediately for debugging
-    log("Running first daily_aura_snapshot immediately (debug)", "INFO")
-    await take_snapshot()
+    # Takes daily snapshot everytime the bot starts (UNCOMMENT FOR DEBUG)
+    # log("Running first daily_aura_snapshot immediately (debug)", "INFO")
+    # await take_snapshot()
 
     while not bot.is_closed():
         wait_seconds: float = seconds_until(9, 29)
@@ -115,9 +115,9 @@ async def post_daily_leaderboard() -> None:
     """Post the daily leaderboard to the configured channel at ~09:30 local time."""
     await bot.wait_until_ready()
 
-    # Run once immediately for debugging
-    log("Running first post_daily_leaderboard immediately (debug)", "INFO")
-    await send_leaderboard()
+    # Posts daily_leaderboard everytime bot starts (UNCOMMENT FOR DEBUGGING)
+    # log("Running first post_daily_leaderboard immediately (debug)", "INFO")
+    # await send_leaderboard()
 
     while not bot.is_closed():
         wait_seconds: float = seconds_until(9, 30)
@@ -152,7 +152,7 @@ async def send_leaderboard() -> None:
     # Pick a random message
     random_message = get_random_aura_message()
     if isinstance(embed_or_msg, Embed):
-        await channel.send(f"{random_message}")
+        await channel.send(f"@here {random_message}")
         await channel.send(embed=embed_or_msg)
     else:
         await channel.send(embed_or_msg)
