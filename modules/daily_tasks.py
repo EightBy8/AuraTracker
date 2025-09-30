@@ -1,37 +1,39 @@
 import asyncio
 import datetime
 import os
+import random
 import json
 from discord import Embed, Color, TextChannel
 from modules.bot_setup import bot
-from modules.aura_manager import aura_data, load_history, ensure_today, save_json, HISTORY_FILE
+from modules import aura_manager
 from modules.utils import log, seconds_until
 
 CONFIG_FILE: str = os.path.join("data", "config.json")
-
-# Channel ID is loaded from config file or None by default
-CHANNEL_ID: int | None = 622609287914717231
+LINES_FILE: str = os.path.join("data", "dailyLines.json")
 
 
 def load_config() -> None:
     """Load channel config from JSON file."""
-    global CHANNEL_ID
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                CHANNEL_ID = data.get("channel_id")
-                log(f"Loaded CHANNEL_ID = {CHANNEL_ID}", "SUCCESS" if CHANNEL_ID else "WARNING")
+                aura_manager.CHANNEL_ID = data.get("channel_id")
+                aura_manager.OWNER_IDS = [int(x) for x in data.get("owner_id", [])]
+                log(f"Loaded CHANNEL_ID = {aura_manager.CHANNEL_ID}", 
+                    "SUCCESS" if aura_manager.CHANNEL_ID else "WARNING")
+                log(f"Loaded OWNER_IDS = {aura_manager.OWNER_IDS}", 
+                    "SUCCESS" if aura_manager.OWNER_IDS else "WARNING")
         except Exception as e:
             log(f"Failed to load config.json: {e}", "ERROR")
 
-
 def save_config() -> None:
     """Save channel config to JSON file."""
-    data = {"channel_id": CHANNEL_ID}
+    data = {"channel_id": aura_manager.CHANNEL_ID,
+            "owner_id": list(aura_manager.OWNER_IDS)}
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
-    log(f"Saved CHANNEL_ID = {CHANNEL_ID}", "SUCCESS")
+    log(f"Saved CHANNEL_ID = {aura_manager.CHANNEL_ID} and OWNER_IDs = {aura_manager.OWNER_IDS}", "SUCCESS")
 
 
 async def daily_aura_snapshot() -> None:
@@ -54,12 +56,12 @@ async def daily_aura_snapshot() -> None:
 async def take_snapshot() -> None:
     """Helper function to take a snapshot immediately."""
     log("Taking daily snapshot...", "INFO")
-    history: dict = load_history()
-    ensure_today(history)
+    history: dict =  aura_manager.load_history()
+    aura_manager.ensure_today(history)
     today: str = datetime.date.today().strftime("%Y-%m-%d")
     timestamp: str = datetime.datetime.now().strftime("%H-%M-%S")
-    history[today] = {"time": timestamp, "aura": aura_data.copy()}
-    save_json(HISTORY_FILE, history)
+    history[today] = {"time": timestamp, "aura": aura_manager.aura_data.copy()}
+    aura_manager.save_json(aura_manager.HISTORY_FILE, history)
     log("Daily snapshot saved", "SUCCESS")
 
 
@@ -68,7 +70,7 @@ async def daily_leaderboard_embed() -> Embed | str:
     Build the daily leaderboard embed comparing yesterday -> today.
     Returns Embed or a string message if not enough data.
     """
-    history: dict = load_history()
+    history: dict = aura_manager.load_history()
     dates: list[str] = sorted(history.keys())
     if len(dates) < 2:
         return "Not enough data for daily leaderboard!"
@@ -82,6 +84,8 @@ async def daily_leaderboard_embed() -> Embed | str:
 
     embed = Embed(title="Daily Aura Ranking", description="--------------------------------------", color=Color(0x32CD32))
     embed.set_footer(text=f"Updated: {dates[-1]}")
+
+    
 
     for rank, (user_id, score) in enumerate(today_sorted, start=1):
         user = await bot.fetch_user(int(user_id))
@@ -110,7 +114,6 @@ async def daily_leaderboard_embed() -> Embed | str:
 async def post_daily_leaderboard() -> None:
     """Post the daily leaderboard to the configured channel at ~09:30 local time."""
     await bot.wait_until_ready()
-    load_config()
 
     # Run once immediately for debugging
     log("Running first post_daily_leaderboard immediately (debug)", "INFO")
@@ -126,20 +129,30 @@ async def post_daily_leaderboard() -> None:
         await send_leaderboard()
 
 
+def get_random_aura_message() -> str:
+    """Loads the list of aura messages and then picks one at random"""
+    with open(LINES_FILE, "r", encoding="utf-8") as f:
+        messages = json.load(f)
+    return random.choice(messages)
+
+
 async def send_leaderboard() -> None:
     """Helper function to send the leaderboard once."""
-    if CHANNEL_ID is None:
+    if aura_manager.CHANNEL_ID is None:
         log("CHANNEL_ID not set. Skipping daily leaderboard post.", "WARNING")
         return
 
-    channel: TextChannel | None = bot.get_channel(CHANNEL_ID)  # type: ignore
+    channel: TextChannel | None = bot.get_channel(aura_manager.CHANNEL_ID)  # type: ignore
     if channel is None:
-        log(f"Channel {CHANNEL_ID} not found. Cannot post daily leaderboard.", "ERROR")
+        log(f"Channel {aura_manager.CHANNEL_ID} not found. Cannot post daily leaderboard.", "ERROR")
         return
 
     embed_or_msg: Embed | str = await daily_leaderboard_embed()
+        
+    # Pick a random message
+    random_message = get_random_aura_message()
     if isinstance(embed_or_msg, Embed):
-        await channel.send("Today's aura standings:")
+        await channel.send(f"{random_message}")
         await channel.send(embed=embed_or_msg)
     else:
         await channel.send(embed_or_msg)

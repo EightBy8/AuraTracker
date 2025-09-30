@@ -6,4 +6,7 @@
 venv
 __pycache__
 
-*.json
+aura.json
+auraCount.json
+auraHistory.json
+config.json

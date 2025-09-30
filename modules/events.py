@@ -1,17 +1,26 @@
 # modules/events.py
 import discord
 from modules.bot_setup import bot
-from modules.aura_manager import (
-    user_reactions,
-    update_aura as manager_update_aura,
-    adjust_sender_count,
-    load_aura_count,
-)
+from modules.daily_tasks import save_config
 from modules.utils import log
+from modules import aura_manager
 
 # Load aura counts into memory
-load_aura_count()
+aura_manager.load_aura_count()
 
+@bot.event
+async def on_ready():
+    updated = False
+    for guild in bot.guilds:
+        owner_id = guild.owner_id
+        if owner_id not in aura_manager.OWNER_IDS:
+            aura_manager.OWNER_IDS.append(owner_id)
+            log(f"Added server owner {owner_id} to 'OWNER_IDS'", "SUCCESS")
+            updated = True
+
+    if updated:
+        save_config()
+        log(f"Saved CHANNEL_ID = {aura_manager.CHANNEL_ID} and OWNER_IDs = {aura_manager.OWNER_IDS}", "SUCCESS")
 
 @bot.event
 async def on_reaction_add(reaction: discord.Reaction, user: discord.User | discord.Member) -> None:
@@ -29,17 +38,17 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.User | disco
         if user.id == target.id: return
 
         emoji_name: str = reaction.emoji if isinstance(reaction.emoji, str) else reaction.emoji.name
-        user_reactions.setdefault(user.id, [])
-        if emoji_name not in user_reactions[user.id]:
-            user_reactions[user.id].append(emoji_name)
+        aura_manager.user_reactions.setdefault(user.id, [])
+        if emoji_name not in aura_manager.user_reactions[user.id]:
+            aura_manager.user_reactions[user.id].append(emoji_name)
 
         if emoji_name == "aura":
-            manager_update_aura(target.id, 1)
-            adjust_sender_count(user.id, "POS", 1)
+            aura_manager.update_aura(target.id, 1)
+            aura_manager.adjust_sender_count(user.id, "POS", 1)
             log(f"{user.name} gave +1 aura to {target.name}", "INFO")
         elif emoji_name == "auradown":
-            manager_update_aura(target.id, -1)
-            adjust_sender_count(user.id, "NEG", 1)
+            aura_manager.update_aura(target.id, -1)
+            aura_manager.adjust_sender_count(user.id, "NEG", 1)
             log(f"{user.name} gave -1 aura to {target.name}", "INFO")
 
     except Exception as e:
@@ -62,17 +71,17 @@ async def on_reaction_remove(reaction: discord.Reaction, user: discord.User | di
 
         emoji_name: str = reaction.emoji if isinstance(reaction.emoji, str) else reaction.emoji.name
 
-        if user.id in user_reactions and emoji_name in user_reactions[user.id]:
+        if user.id in aura_manager.user_reactions and emoji_name in aura_manager.user_reactions[user.id]:
             if emoji_name == "aura":
-                manager_update_aura(target.id, -1)
-                adjust_sender_count(user.id, "POS", -1)
+                aura_manager.update_aura(target.id, -1)
+                aura_manager.adjust_sender_count(user.id, "POS", -1)
                 log(f"{user.name} removed +aura from {target.name}", "INFO")
             elif emoji_name == "auradown":
-                manager_update_aura(target.id, 1)
-                adjust_sender_count(user.id, "NEG", -1)
+                aura_manager.update_aura(target.id, 1)
+                aura_manager.adjust_sender_count(user.id, "NEG", -1)
                 log(f"{user.name} removed -aura from {target.name}", "INFO")
 
-            user_reactions[user.id].remove(emoji_name)
+            aura_manager.user_reactions[user.id].remove(emoji_name)
 
     except Exception as e:
         log(f"Error in on_reaction_remove: {e}", "ERROR")

@@ -6,15 +6,7 @@ import json
 import os
 from modules.bot_setup import bot
 from modules.daily_tasks import save_config, load_config
-from modules.daily_tasks import CHANNEL_ID
-from modules.aura_manager import (
-    aura_data,
-    set_aura as manager_set_aura,
-    update_aura as manager_update_aura,
-    user_aura_count,
-    OWNER_ID,
-    get_negative_leaderboard,
-)
+from modules import aura_manager
 from modules.utils import log, seconds_until
 from discord import Embed
 
@@ -32,27 +24,57 @@ def load_aura_count() -> dict:
 @bot.command()
 async def set_channel(ctx: commands.Context) -> None:
     """Set the current channel as the daily leaderboard channel."""
-    from modules import daily_tasks
-    daily_tasks.CHANNEL_ID = ctx.channel.id
-    save_config()
+    if ctx.author.id not in aura_manager.OWNER_IDS:
+        return await ctx.send("You do not have permission to set channels.")
+
+    aura_manager.CHANNEL_ID = ctx.channel.id  # <-- update this
+    save_config()  # this now saves the correct CHANNEL_ID
     await ctx.send(f"Daily leaderboard channel set to {ctx.channel.mention}")
     log(f"Daily leaderboard channel set to {ctx.channel.id} by {ctx.author}", "INFO")
 
 @bot.command()
+async def add_officer(ctx: commands.Context, member: discord.Member) -> None:
+    """Adds a user to 'owner_ids' in config.json"""
+    if ctx.author.id != ctx.guild.owner_id:
+        return await ctx.send("Only the server owner can use this command.") 
+    
+    if member.id not in aura_manager.OWNER_IDS:
+        aura_manager.add_owner(member.id)
+        save_config()
+        await ctx.send(f"{member.mention} has been added as an officer.")
+    else:
+        await ctx.send(f"{member.mention} is already an offcier.")
+
+
+@bot.command()
+async def remove_officer(ctx: commands.Context, member: discord.Member) -> None:
+    if ctx.author.id not in aura_manager.OWNER_IDS:
+        return await ctx.send("You do not have permission to remove officers...")
+    
+    if member.id not in aura_manager.OWNER_IDS:
+        await ctx.send(f"{member.mention} is not an officer.")
+    else:
+        aura_manager.remove_owner(member.id)
+        save_config()
+        await ctx.send(f"{member.mention} has been removed as an officer.")
+
+
+
+@bot.command()
 async def aura(ctx: commands.Context, member: discord.Member | None = None) -> None:
     member = member or ctx.author
-    user_aura = aura_data.get(str(member.id), 0)
+    user_aura = aura_manager.aura_data.get(str(member.id), 0)
     await ctx.send(f"{member.mention}'s aura: {user_aura}")
     log(f"Aura requested for {member} ({member.id})", "INFO")
 
 
 @bot.command(name="lb")
 async def lb(ctx: commands.Context) -> None:
-    if not aura_data:
+    if not aura_manager.aura_data:
         await ctx.send("No aura yet!")
         return
 
-    sorted_aura = sorted(aura_data.items(), key=lambda x: x[1], reverse=True)
+    sorted_aura = sorted(aura_manager.aura_data.items(), key=lambda x: x[1], reverse=True)
     embed = Embed(title="Aura Leaderboard", description="--------------------------------------")
     for rank, (uid, score) in enumerate(sorted_aura, start=1):
         user = await bot.fetch_user(int(uid))
@@ -68,29 +90,55 @@ async def leaderboard_alias(ctx: commands.Context) -> None:
 
 
 @bot.command()
+async def give_aura(ctx: commands.Context, member: discord.Member, amount: int) -> None:
+    giver_id = str(ctx.author.id)
+    receiver_id = str(member.id)
+
+    if amount <= 0:
+        return await ctx.send("You can only give a positive amount of aura.")
+
+    # Ensure both users exist in aura_data
+    aura_manager.aura_data.setdefault(giver_id, 0)
+    aura_manager.aura_data.setdefault(receiver_id, 0)
+
+    giver_aura = aura_manager.aura_data[giver_id]
+
+    if giver_aura < amount:
+        return await ctx.send(f"You don't have enough aura to give {amount} points.")
+
+    # Transfer aura
+    aura_manager.aura_data[giver_id] -= amount
+    aura_manager.aura_data[receiver_id] += amount
+
+    # Save to file
+    aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
+
+    await ctx.send(f"{ctx.author.mention} gave {amount} aura to {member.mention}! ")
+
+@bot.command()
 async def set_aura(ctx: commands.Context, member: discord.Member, amount: int) -> None:
-    if str(ctx.author.id) not in OWNER_ID:
+    if ctx.author.id not in aura_manager.OWNER_IDS:
         return await ctx.send("You do not have permission to set the aura.")
-    manager_set_aura(member.id, amount)
+    aura_manager.set_aura(member.id, amount)
     await ctx.send(f"{member.mention}'s aura set to {amount}!")
     log(f"{ctx.author} set aura for {member} to {amount}", "INFO")
 
 
 @bot.command()
 async def reset_aura(ctx: commands.Context, member: discord.Member) -> None:
-    if str(ctx.author.id) not in OWNER_ID:
+    if ctx.author.id not in aura_manager.OWNER_IDS:
         return await ctx.send("You do not have permission to reset the aura.")
-    manager_set_aura(member.id, 0)
+    aura_manager.set_aura(member.id, 0)
     await ctx.send(f"{member.mention}'s aura has been reset to 0!")
     log(f"{ctx.author} reset aura for {member}", "INFO")
 
 
 @bot.command()
 async def modify_aura(ctx: commands.Context, member: discord.Member, amount: int) -> None:
-    if str(ctx.author.id) not in OWNER_ID:
+    if ctx.author.id not in aura_manager.OWNER_IDS:
         return await ctx.send("You do not have permission to modify aura.")
-    manager_update_aura(member.id, amount)
-    new_val = aura_data.get(str(member.id), 0)
+    aura_manager.update_aura(member.id, amount)
+    new_val = aura_manager.aura_data.get(str(member.id), 0)
     if amount > 0:
         await ctx.send(f"{member.mention} received +{amount} Aura. Now: {new_val} Aura.")
     else:
@@ -169,7 +217,7 @@ async def slb(ctx: commands.Context) -> None:
 
 
 @bot.command()
-async def daily_leaderboard(ctx: commands.Context) -> None:
+async def dailylb(ctx: commands.Context) -> None:
     wait = seconds_until(9, 30)
     hours, minutes, seconds = int(wait // 3600), int((wait % 3600) // 60), int(wait % 60)
     await ctx.send(f"Time Until Daily Leaderboard: {hours}h {minutes}m {seconds}s")
@@ -178,17 +226,25 @@ async def daily_leaderboard(ctx: commands.Context) -> None:
 @bot.command()
 async def help(ctx: commands.Context) -> None:
     await ctx.send(
-        """
-**Aura Bot Commands**
+"""
 
-User:
-?aura [Member] - check aura
-?lb - show leaderboard
+## Aura Bot Commands
 
-Admin:
-?set_aura [member] [amount] - set aura
-?reset_aura [member] - reset aura
-?modify_aura [member] [amount] - modify aura
-?dsleaderboard - who gives the most negative aura
+### __*User:*__
+- ?aura [Member] - check aura
+- ?give_aura [Memeber] [Amount] - Send aura to another user
+- ?lb - shows leaderboard
+- ?slb - shows who gives the most positive aura
+- ?dslb - shows who gives the most negative aura
+- ?dailylb - shows countdown for next daily leaderboard post
+
+
+### __*Aura Officer Commands :*__
+- `?set_aura [member] [amount] - set aura`
+- `?reset_aura [member] - reset aura`
+- `?modify_aura [member] [amount] - modify aura`
+- `?set_channel - sets the channel for daily leaderboards to be sent`
+- `?add_officer - adds user to aura officer list`
+
 """
     )

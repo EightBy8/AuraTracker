@@ -13,15 +13,30 @@ os.makedirs(DATA_DIR, exist_ok=True)
 AURA_FILE: str = os.path.join(DATA_DIR, "aura.json")
 HISTORY_FILE: str = os.path.join(DATA_DIR, "auraHistory.json")
 AURACOUNTER_FILE: str = os.path.join(DATA_DIR, "auraCount.json")
+CONFIG_FILE: str = os.path.join(DATA_DIR, "config.json")
 
 # In-memory state
 aura_data: Dict[str, int] = {}
 user_reactions: Dict[int, list[str]] = {}
 user_aura_count: Dict[str, Dict[str, int]] = {}
 
-# Owners allowed to set/modify aura (as strings)
-OWNER_ID: tuple[str, ...] = ("187365945327616000", "109482185949446144")
+# Global Variables
+OWNER_IDS: list[int] = []
+CHANNEL_ID: int | None = None
 
+# ---- Owner/Admin Manager
+
+def add_owner(owner_id : str) -> None:
+    global OWNER_IDS
+    if owner_id not in OWNER_IDS:
+        OWNER_IDS += (owner_id,)
+
+def remove_owner(owner_id: str) -> None:
+    global OWNER_IDS
+    try:
+        OWNER_IDS.remove(owner_id)
+    except ValueError:
+        pass
 
 # ---- JSON helpers ----
 def load_json(file: str) -> Dict[str, Any]:
@@ -43,6 +58,7 @@ def save_json(file: str, data: Dict[str, Any]) -> None:
     with open(file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
     log(f"{file} saved", "SUCCESS")
+
 
 
 # ---- Aura data management ----
@@ -69,6 +85,8 @@ def ensure_today(history: Dict[str, Any]) -> None:
         history[today] = {}
         log("Added today's date to history", "WARNING")
 
+
+# ---- Aura Command Helper ----
 
 def set_aura(user_id: int, amount: int) -> None:
     """Set a user's aura to an explicit value."""
