@@ -13,6 +13,113 @@ from discord import Embed
 # Path to auraCount.json
 AURA_COUNT_FILE = os.path.join("data", "auraCount.json")
 
+
+
+class pageTurn(discord.ui.View):
+    def __init__(self, data):
+        super().__init__(timeout=120) # Added () after __init__
+        self.data = data
+        self.currentPage = 0
+        self.perPage = 10
+
+    def createEmbed(self):
+            # 1. Calculate the chunk of data to show
+            start = self.currentPage * self.perPage
+            end = start + self.perPage
+            chunk = self.data[start:end]
+            
+            # 2. Build the description string
+            description = "\n".join(chunk)
+
+            # 3. Create the Embed object (Title, Description, Color)
+            embed = discord.Embed(
+                title=f"Aura Leaderboard Page {self.currentPage + 1}",
+                description=f"--------------------------------------\n{description}",
+                color=discord.Color(0x32CD32)
+            )
+
+            # 4. Calculate total pages
+            total_pages = (len(self.data) - 1) // self.perPage + 1
+
+            # 5. Set the footer on the embed object
+            embed.set_footer(text=f"Page {self.currentPage + 1} of {total_pages}")
+            
+            return embed
+            
+    @discord.ui.button(label="Previous", style=discord.ButtonStyle.gray)
+    async def prevButton(self, interaction: discord.Interaction, button: discord.ui.Button):
+            if self.currentPage > 0:
+                self.currentPage -= 1
+                await interaction.response.edit_message(embed=self.createEmbed(), view=self)
+                log(f"{interaction.user.name.capitalize()} Turned the page", "INFO")
+
+            else:
+                # Let the user know they can't go back further
+                await interaction.response.send_message("You're on the first page!", ephemeral=True)
+
+
+    @discord.ui.button(label="Next Page", style=discord.ButtonStyle.green)
+    async def nextButton(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 1. Update the page tracker
+        self.currentPage += 1
+        
+        # 2. Create the NEW embed
+        newEmbed = self.createEmbed()
+        
+        # 3. EDIT the message (This is the "Turning the page" part)
+        await interaction.response.edit_message(embed=newEmbed, view=self)
+        log(f"{interaction.user.name.capitalize()} Turned the page", "INFO")
+
+
+
+class testButton(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None) # The button dies NEVER!
+
+    @discord.ui.button(label="Click Me!", style=discord.ButtonStyle.green,)
+    async def buttonCallback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # This code runs when the button is clicked
+        await interaction.response.send_message(f"{interaction.user.name} clicked the button.", ephemeral=False)
+        log(f"{interaction.user.name.capitalize()} Cliked The Button","SUCCESS")
+
+
+
+@bot.command()
+async def testEmbed(ctx):
+    # 1. Get and sort data
+    data = aura_manager.aura_data
+    if not data:
+        await ctx.send("No data for leaderboard yet!")
+        return
+
+    sorted_aura = sorted(data.items(), key=lambda x: x[1], reverse=True)
+
+    # 2. Format the data into a list of strings for the paginator
+    formatted_data = []
+    for rank, (uid, score) in enumerate(sorted_aura, start=1):
+        prefix = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, str(rank))
+        formatted_data.append(f"{prefix}> <@{uid}> \n\u2003Aura: {score}\n")
+
+    # 3. Initialize the View and send the first page
+    view = pageTurn(formatted_data)
+    embed = view.createEmbed()
+    
+    # Send the embed AND the view (buttons)
+    await ctx.send(embed=embed, view=view)
+
+@bot.command()
+async def testbutton(ctx):
+    # 1. Create an instance of your button gadget
+    view = testButton()
+    
+    # 2. Send a message and attach the view to it
+    await ctx.send("Here is a message with a button!", view=view)
+
+
+
+
+
+
 def load_aura_count() -> dict:
     """Load aura count (POS/NEG stats) from JSON file."""
     if os.path.exists(AURA_COUNT_FILE):
@@ -75,7 +182,7 @@ async def lb(ctx: commands.Context) -> None:
         return
 
     sorted_aura = sorted(aura_manager.aura_data.items(), key=lambda x: x[1], reverse=True)
-    embed = Embed(title="Aura Leaderboard", description="--------------------------------------")
+    embed = Embed(title="Aura Leaderboard", description="--------------------------------------",color=discord.Color(0x32CD32), ) 
     for rank, (uid, score) in enumerate(sorted_aura, start=1):
         user = await bot.fetch_user(int(uid))
         prefix = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, str(rank))
@@ -196,7 +303,7 @@ async def slb(ctx: commands.Context) -> None:
     embed = Embed(
         title="Simp Leaderboard",
         description="Leaderboard for people who hand out +aura like candy",
-        color=discord.Color(0x32CD32),  # green for positive vibes
+        color=discord.Color(0x32CD32),  
     )
 
     for rank, (uid, pos_count) in enumerate(sorted_pos, start=1):
