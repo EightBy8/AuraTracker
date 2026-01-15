@@ -7,6 +7,7 @@ from discord import Embed, Color, TextChannel
 from modules.bot_setup import bot
 from modules import aura_manager
 from modules.utils import log, seconds_until
+from modules.ui import leaderboardEmbed
 
 CONFIG_FILE: str = os.path.join("data", "config.json")
 LINES_FILE: str = os.path.join("data", "dailyLines.json")
@@ -65,13 +66,14 @@ async def take_snapshot() -> None:
     log("Daily snapshot saved", "SUCCESS")
 
 
-async def daily_leaderboard_embed() -> Embed | str:
+async def daily_leaderboard_data() -> list[str] | str:
     """
-    Build the daily leaderboard embed comparing yesterday -> today.
-    Returns Embed or a string message if not enough data.
+    Build the daily leaderboard comparing yesterday -> today.
+    Returns a list of formatted strings for the paginator.
     """
     history: dict = aura_manager.load_history()
     dates: list[str] = sorted(history.keys())
+    
     if len(dates) < 2:
         return "Not enough data for daily leaderboard!"
 
@@ -80,20 +82,32 @@ async def daily_leaderboard_embed() -> Embed | str:
 
     yesterday_sorted = sorted(yesterday.items(), key=lambda x: x[1], reverse=True)
     yesterday_ranks: dict[str, int] = {user_id: rank for rank, (user_id, _) in enumerate(yesterday_sorted, start=1)}
+    
     today_sorted = sorted(today.items(), key=lambda x: x[1], reverse=True)
 
-    embed = Embed(title="Daily Aura Ranking", description="--------------------------------------", color=Color(0x32CD32))
-    embed.set_footer(text=f"Updated: {dates[-1]}")
-
-    
-
+    formatted_lines = []
     for rank, (user_id, score) in enumerate(today_sorted, start=1):
-        user = await bot.fetch_user(int(user_id))
-        user_name: str = str(user.name).capitalize()
-        old_rank: int | None = yesterday_ranks.get(user_id)
-        old_score: int = yesterday.get(user_id, 0)
-        diff: int = score - old_score
-        diff_text: str = f"(+{diff})" if diff > 0 else f"({diff})" if diff < 0 else ""
+        # --- SAFE USER LOOKUP ---
+        # 1. Start with a fallback name so the variable ALWAYS exists
+        user_name = f"User({user_id})" 
+        
+        # 2. Try to get the name from cache
+        user = bot.get_user(int(user_id))
+        if user:
+            user_name = user.name.capitalize()
+        else:
+            # 3. If not in cache, try one quick fetch (this can be slow in large loops)
+            try:
+                user = await bot.fetch_user(int(user_id))
+                user_name = user.name.capitalize()
+            except:
+                pass # user_name stays as "User(id)" if this fails
+
+        # --- CALCULATE DIFFERENCE AND STATUS ---
+        old_rank = yesterday_ranks.get(user_id)
+        old_score = yesterday.get(user_id, 0)
+        diff = score - old_score
+        diff_text = f"(+{diff})" if diff > 0 else f"({diff})" if diff < 0 else ""
 
         if old_rank is None:
             status = "NEW✚"
@@ -104,12 +118,13 @@ async def daily_leaderboard_embed() -> Embed | str:
         else:
             status = "AURA━"
 
-        prefix = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, str(rank))
-        embed.add_field(name=f"{prefix} > {user_name} {status}", value=f"Aura: {score} {diff_text}", inline=False)
+        # --- FORMAT THE STRING ---
+        prefix = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, f"**#{rank}**")
+        line = f"{prefix} **{user_name}** {status}\n\u2003Aura: `{score}` {diff_text}\n"
+        formatted_lines.append(line) 
 
-    log("Daily leaderboard embed created", "INFO")
-    return embed
-
+    log("Daily leaderboard data processed", "INFO")
+    return formatted_lines
 
 async def post_daily_leaderboard() -> None:
     """Post the daily leaderboard to the configured channel at ~09:30 local time."""
@@ -135,6 +150,7 @@ def get_random_aura_message() -> str:
         messages = json.load(f)
     return random.choice(messages)
 
+    channel = bot.get_channel(aura_manager.CHANNEL_ID)
 
 async def send_leaderboard() -> None:
     """Helper function to send the leaderboard once."""
@@ -142,18 +158,24 @@ async def send_leaderboard() -> None:
         log("CHANNEL_ID not set. Skipping daily leaderboard post.", "WARNING")
         return
 
-    channel: TextChannel | None = bot.get_channel(aura_manager.CHANNEL_ID)  # type: ignore
+    channel = bot.get_channel(aura_manager.CHANNEL_ID)
+    
     if channel is None:
-        log(f"Channel {aura_manager.CHANNEL_ID} not found. Cannot post daily leaderboard.", "ERROR")
+        log(f"Channel {aura_manager.CHANNEL_ID} not found. Cannot post.", "ERROR")
         return
 
-    embed_or_msg: Embed | str = await daily_leaderboard_embed()
-        
-    # Pick a random message
-    random_message = get_random_aura_message()
-    if isinstance(embed_or_msg, Embed):
-        await channel.send(f"@here {random_message}")
-        await channel.send(embed=embed_or_msg)
-    else:
-        await channel.send(embed_or_msg)
+    data = await daily_leaderboard_data()
+    
+    if isinstance(data, str): 
+        await channel.send(data)
+        return
 
+    #Create the view
+    view = leaderboardEmbed(data, title="Daily Aura Standings", color=0x6dab18)
+    random_message = get_random_aura_message()
+    embed = view.createEmbed()
+    
+    botText=f"||Test||**{random_message}**"
+    await channel.send(content=botText, embed=embed, view=view)
+
+    log("Daily Leaderboard Posted", "SUCCESS")

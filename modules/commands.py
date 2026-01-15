@@ -8,10 +8,104 @@ from modules.bot_setup import bot
 from modules.daily_tasks import save_config, load_config
 from modules import aura_manager
 from modules.utils import log, seconds_until
+from modules.ui import leaderboardEmbed
 from discord import Embed
 
 # Path to auraCount.json
 AURA_COUNT_FILE = os.path.join("data", "auraCount.json")
+
+
+#Test Page Turn Embed Layout
+class pageTurn(discord.ui.View):
+    def __init__(self, data):
+        super().__init__(timeout=120) # Added () after __init__
+        self.data = data
+        self.currentPage = 0
+        self.perPage = 10
+
+    def createEmbed(self):
+            # 1. Calculate the chunk of data to show
+            start = self.currentPage * self.perPage
+            end = start + self.perPage
+            chunk = self.data[start:end]
+            
+            # description between each user
+            description = "--------------------------------------\n".join(chunk)
+
+            # 3. Create the Embed object (Title, Description, Color)
+            embed = discord.Embed(
+                title=f"Aura Leaderboard Page {self.currentPage + 1}",
+                description=f"\n{description}",
+                color=discord.Color(0x32CD32)
+            )
+
+            # 4. Calculate total pages
+            total_pages = (len(self.data) - 1) // self.perPage + 1
+
+            # 5. Set the footer on the embed object
+            embed.set_footer(text=f"Page {self.currentPage + 1} of {total_pages}")
+            
+            return embed
+            
+    @discord.ui.button(label="Previous", style=discord.ButtonStyle.gray)
+    async def prevButton(self, interaction: discord.Interaction, button: discord.ui.Button):
+            if self.currentPage > 0:
+                self.currentPage -= 1
+                await interaction.response.edit_message(embed=self.createEmbed(), view=self)
+                log(f"{interaction.user.name.capitalize()} Turned the page", "INFO")
+
+            else:
+                # Let the user know they can't go back further
+                await interaction.response.send_message("You're on the first page!", ephemeral=True)
+
+
+    @discord.ui.button(label="Next Page", style=discord.ButtonStyle.green)
+    async def nextButton(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 1. Update the page tracker
+        self.currentPage += 1
+        
+        # 2. Create the NEW embed
+        newEmbed = self.createEmbed()
+        
+        # 3. EDIT the message (This is the "Turning the page" part)
+        await interaction.response.edit_message(embed=newEmbed, view=self)
+        log(f"{interaction.user.name.capitalize()} Turned the page", "INFO")
+
+
+class testButton(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None) # The button dies NEVER!
+
+    @discord.ui.button(label="Click Me!", style=discord.ButtonStyle.green,)
+    async def buttonCallback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # This code runs when the button is clicked
+        await interaction.response.send_message(f"{interaction.user.name} clicked the button.", ephemeral=False)
+        log(f"{interaction.user.name.capitalize()} Cliked The Button","SUCCESS")
+
+
+@bot.command()
+async def testEmbed(ctx):
+    # 1. Get and sort data
+    data = aura_manager.aura_data
+    if not data:
+        await ctx.send("No data for leaderboard yet!")
+        return
+
+    sorted_aura = sorted(data.items(), key=lambda x: x[1], reverse=True)
+
+    # 2. Format the data into a list of strings for the paginator
+    formatted_data = []
+    for rank, (uid, score) in enumerate(sorted_aura, start=1):
+        prefix = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, str(rank))
+        formatted_data.append(f"{prefix}> <@{uid}> \n\u2003Aura: {score}\n")
+
+    # 3. Initialize the View and send the first page
+    view = pageTurn(formatted_data)
+    embed = view.createEmbed()
+    
+    # Send the embed AND the view (buttons)
+    await ctx.send(embed=embed, view=view)
+
 
 def load_aura_count() -> dict:
     """Load aura count (POS/NEG stats) from JSON file."""
@@ -58,7 +152,29 @@ async def remove_officer(ctx: commands.Context, member: discord.Member) -> None:
         save_config()
         await ctx.send(f"{member.mention} has been removed as an officer.")
 
+from modules.daily_tasks import send_leaderboard # Import the function you just fixed
 
+@bot.command()
+async def test_daily(ctx):
+    """Manually triggers the daily leaderboard for testing."""
+    # 1. Check if the user is an officer
+    if ctx.author.id not in aura_manager.OWNER_IDS:
+        return await ctx.send("❌ You don't have permission to run this test.")
+
+    await ctx.send("🔄 Running manual daily leaderboard test...")
+
+    # 2. Trigger the functions from modules/daily_tasks.py
+    from modules.daily_tasks import send_leaderboard, take_snapshot
+    
+    try:
+        # We take a snapshot first so there is "Today" data to compare against
+        await take_snapshot() 
+        # Then we send the leaderboard
+        await send_leaderboard()
+        await ctx.send("✅ Test complete! Check the designated leaderboard channel.")
+    except Exception as e:
+        await ctx.send(f"⚠️ Test failed! Check console. Error: {e}")
+        log(f"Manual daily leaderboard test failed: {e}", "ERROR")
 
 @bot.command()
 async def aura(ctx: commands.Context, member: discord.Member | None = None) -> None:
@@ -68,20 +184,56 @@ async def aura(ctx: commands.Context, member: discord.Member | None = None) -> N
     log(f"Aura requested for {member} ({member.id})", "INFO")
 
 
-@bot.command(name="lb")
-async def lb(ctx: commands.Context) -> None:
-    if not aura_manager.aura_data:
-        await ctx.send("No aura yet!")
-        return
+@bot.command()
+async def lb(ctx, page: int = 1): # Added page argument
+    # Define 'data' properly
+    data = aura_manager.aura_data
+    if not data:
+        return await ctx.send("No Data for Leaderboard Yet...")
 
-    sorted_aura = sorted(aura_manager.aura_data.items(), key=lambda x: x[1], reverse=True)
-    embed = Embed(title="Aura Leaderboard", description="--------------------------------------")
+    # Sort the data
+    sorted_aura = sorted(data.items(), key=lambda x: x[1], reverse=True)
+
+    # Format Data
+    formatted_data = []
     for rank, (uid, score) in enumerate(sorted_aura, start=1):
-        user = await bot.fetch_user(int(uid))
-        prefix = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, str(rank))
-        embed.add_field(name=f"{prefix} > {user.name.capitalize()}", value=f"Aura: {score}", inline=False)
-    await ctx.send(embed=embed)
-    log("Leaderboard shown", "INFO")
+         prefix = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, str(rank))
+         formatted_data.append(f"{prefix}> <@{uid}> \n\u2003Aura: {score}\n")
+    
+    # Initialize the View
+    view = leaderboardEmbed(
+        data=formatted_data, 
+        title="Aura Leaderboard", 
+        description="Leaderboard for people with the most aura",
+        color=0x6dab18
+    )
+
+    # Set the starting page based on user input
+    target_page = page - 1
+    if 0 <= target_page <= view.end:
+        view.currentPage = target_page
+        await ctx.send(embed=view.createEmbed(), view=view)
+    else:
+        await ctx.send(f"Invalid page! Choose between 1 and {view.end + 1}.")
+
+
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# OLD LEADERBOARD EMBED, WONT WORK WITH OVER 20 MEMBERS
+ 
+# async def lb(ctx: commands.Context) -> None:
+#     if not aura_manager.aura_data:
+#         await ctx.send("No aura yet!")
+#         return
+#
+#     sorted_aura = sorted(aura_manager.aura_data.items(), key=lambda x: x[1], reverse=True)
+#     embed = Embed(title="Aura Leaderboard", description="--------------------------------------",color=discord.Color(0x32CD32), ) 
+#     for rank, (uid, score) in enumerate(sorted_aura, start=1):
+#         user = await bot.fetch_user(int(uid))
+#         prefix = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, str(rank))
+#         embed.add_field(name=f"{prefix} > {user.name.capitalize()}", value=f"Aura: {score}", inline=False)
+#     await ctx.send(embed=embed)
+#     log("Leaderboard shown", "INFO")
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 @bot.command(name="leaderboard")
@@ -90,20 +242,36 @@ async def leaderboard_alias(ctx: commands.Context) -> None:
 
 
 @bot.command()
-async def give_aura(ctx: commands.Context, member: discord.Member, amount: int) -> None:
+async def give_aura(ctx: commands.Context, member: discord.Member, amount: str) -> None:
     giver_id = str(ctx.author.id)
     receiver_id = str(member.id)
+    
+    # Get the giver's current balance
+    currentAura = aura_manager.aura_data.get(giver_id, 0)
 
+    # Convert "all" or string to integer
+    if amount.lower() == "all":
+        amount = currentAura
+    elif amount.lower() == "half":
+        amount = currentAura // 2
+    else:
+        try:
+            amount = int(amount)
+        except ValueError:
+            return await ctx.send("Please enter a valid number or 'all'.")
+
+    # Basic checks
     if amount <= 0:
         return await ctx.send("You can only give a positive amount of aura.")
+    
+    if member.id == ctx.author.id:
+        return await ctx.send("You can't give aura to yourself!")
 
-    # Ensure both users exist in aura_data
-    aura_manager.aura_data.setdefault(giver_id, 0)
+    # Ensure receiver exists in aura_data
     aura_manager.aura_data.setdefault(receiver_id, 0)
 
-    giver_aura = aura_manager.aura_data[giver_id]
-
-    if giver_aura < amount:
+    # Check if they have enough
+    if currentAura < amount:
         return await ctx.send(f"You don't have enough aura to give {amount} points.")
 
     # Transfer aura
@@ -113,15 +281,17 @@ async def give_aura(ctx: commands.Context, member: discord.Member, amount: int) 
     # Save to file
     aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
 
-    await ctx.send(f"{ctx.author.mention} gave {amount} aura to {member.mention}! ")
+    await ctx.send(f"{ctx.author.mention} gave **{amount}** aura to {member.mention}!")
+    log(f"{ctx.author.name.capitalize()} gave {amount} aura to {member.name.capitalize()}", "INFO")
 
 @bot.command()
 async def set_aura(ctx: commands.Context, member: discord.Member, amount: int) -> None:
+    authorName = ctx.author.display_name.capitalize()
     if ctx.author.id not in aura_manager.OWNER_IDS:
         return await ctx.send("You do not have permission to set the aura.")
     aura_manager.set_aura(member.id, amount)
-    await ctx.send(f"{member.mention}'s aura set to {amount}!")
-    log(f"{ctx.author} set aura for {member} to {amount}", "INFO")
+    await ctx.send(f"{member.mention} > New Balance: `{amount} Aura`")
+    log(f"{authorName} set aura for {member} to {amount}", "INFO")
 
 
 @bot.command()
@@ -137,18 +307,20 @@ async def reset_aura(ctx: commands.Context, member: discord.Member) -> None:
 async def modify_aura(ctx: commands.Context, member: discord.Member, amount: int) -> None:
     if ctx.author.id not in aura_manager.OWNER_IDS:
         return await ctx.send("You do not have permission to modify aura.")
-    aura_manager.update_aura(member.id, amount)
+    aura_manager.update_aura(member.id, amount, ctx.author.display_name)
     new_val = aura_manager.aura_data.get(str(member.id), 0)
     if amount > 0:
-        await ctx.send(f"{member.mention} received +{amount} Aura. Now: {new_val} Aura.")
+        await ctx.send("Modifying Aura...")
+        await ctx.send(f"{member.mention} > New Balance: `{amount} Aura`")
     else:
-        await ctx.send(f"{member.mention} lost {abs(amount)} Aura. Now: {new_val} Aura.")
+        await ctx.send("Modifying Aura...")
+        await ctx.send(f"{member.mention} > New Balance: `{amount} Aura`")
     log(f"{ctx.author} modified aura for {member} by {amount}", "INFO")
 
 @bot.command()
-async def dslb(ctx: commands.Context) -> None:
-    """Show leaderboard of who has given the most negative aura."""
-    from modules.aura_manager import user_aura_count  # always use in-memory state
+async def dslb(ctx, page: int = 1):
+    """Show paginated leaderboard of who has given the most negative aura."""
+    from modules.aura_manager import user_aura_count
 
     # Filter only people with NEG > 0
     neg_scores = {uid: data["NEG"] for uid, data in user_aura_count.items() if data["NEG"] > 0}
@@ -157,65 +329,74 @@ async def dslb(ctx: commands.Context) -> None:
         await ctx.send("Nobody has given negative aura yet...")
         return
 
+    # Sort the data
     sorted_neg = sorted(neg_scores.items(), key=lambda x: x[1], reverse=True)
 
-    embed = Embed(
+    # Format into a list of strings
+    formatted_data = []
+    for rank, (uid, neg_count) in enumerate(sorted_neg, start=1):
+        emoji = {1: "🍆", 2: "🚴", 3: "🤸"}.get(rank, str(rank))
+        formatted_data.append(f"{emoji} > <@{uid}>\n\u2003Negative Aura Given: {neg_count}\n")
+
+    # Embed Title and Description
+    view = leaderboardEmbed(
+        data=formatted_data,
         title="Leaderboard of Dicksuck",
         description="Leaderboard for people who need to lay off the -aura button",
+        color=0xEBF527
     )
-    for rank, (uid, neg_count) in enumerate(sorted_neg, start=1):
-        try:
-            user = await bot.fetch_user(int(uid))
-            user_name = str(user.name).capitalize()
-        except Exception:
-            user_name = uid
-        emoji = {1: "🍆", 2: "🚴", 3: "🤸"}.get(rank, str(rank))
-        embed.add_field(
-            name=f"{emoji} > {user_name}",
-            value=f"Negative Aura Given: {neg_count}",
-            inline=False,
-        )
 
-    await ctx.send(embed=embed)
-
+    # Handle starting page logic
+    target_page = page - 1
+    if target_page < 0 or target_page > view.end:
+        await ctx.send(f"Invalid page! Choose a page between `1` and `{view.end + 1}`.")
+        return
+    
+    view.currentPage = target_page
+    
+    #Send it
+    await ctx.send(embed=view.createEmbed(), view=view)
 
 @bot.command(name="slb")
-async def slb(ctx: commands.Context) -> None:
-    """Show leaderboard of who has given the most positive aura (Simp Leaderboard)."""
-    from modules.aura_manager import user_aura_count  # always use in-memory state
+async def slb(ctx: commands.Context, page: int = 1) -> None:
+    """Show paginated Simp Leaderboard."""
+    from modules.aura_manager import user_aura_count 
 
-    # Filter only people with POS > 0
+    # 1. Filter only people with POS > 0
     pos_scores = {uid: data["POS"] for uid, data in user_aura_count.items() if data["POS"] > 0}
 
     if not pos_scores:
         await ctx.send("Nobody has given positive aura yet...")
         return
 
+    # 2. Sort the data
     sorted_pos = sorted(pos_scores.items(), key=lambda x: x[1], reverse=True)
 
-    embed = Embed(
+    # 3. Format into a list of strings
+    formatted_data = []
+    for rank, (uid, pos_count) in enumerate(sorted_pos, start=1):
+        emoji = {1: "👑", 2: "💎", 3: "🌸"}.get(rank, str(rank))
+        formatted_data.append(f"{emoji} > <@{uid}>\n\u2003Positive Aura Given: {pos_count}\n")
+
+    # 4. Embed Title and Description
+    view = leaderboardEmbed(
+        data=formatted_data,
         title="Simp Leaderboard",
         description="Leaderboard for people who hand out +aura like candy",
-        color=discord.Color(0x32CD32),  # green for positive vibes
+        color=0xfd87e2
     )
 
-    for rank, (uid, pos_count) in enumerate(sorted_pos, start=1):
-        try:
-            user = await bot.fetch_user(int(uid))
-            user_name = str(user.name).capitalize()
-        except Exception:
-            user_name = uid
-
-        emoji = {1: "👑", 2: "💎", 3: "🌸"}.get(rank, str(rank))
-        embed.add_field(
-            name=f"{emoji} > {user_name}",
-            value=f"Positive Aura Given: {pos_count}",
-            inline=False,
-        )
-
-    await ctx.send(embed=embed)
-
-
+    # Handle starting page logic
+    target_page = page - 1
+    if target_page < 0 or target_page > view.end:
+        await ctx.send(f"Invalid page! Choose a page between `1` and `{view.end + 1}`.")
+        return
+    
+    view.currentPage = target_page
+    
+    # Send the embed and the view
+    await ctx.send(embed=view.createEmbed(), view=view)
+    
 @bot.command()
 async def dailylb(ctx: commands.Context) -> None:
     wait = seconds_until(9, 30)
@@ -232,11 +413,13 @@ async def help(ctx: commands.Context) -> None:
 
 ### __*User:*__
 - ?aura [Member] - check aura
-- ?give_aura [Memeber] [Amount] - Send aura to another user
+- ?give_aura [Memeber] [Amount | "all", "half"] - Send aura to another user
 - ?lb - shows leaderboard
 - ?slb - shows who gives the most positive aura
 - ?dslb - shows who gives the most negative aura
 - ?dailylb - shows countdown for next daily leaderboard post
+- ?coinflip, ?cf - [Amount | "all", "half"] - Play a coinflip game
+- ?blackjack, ?bj - [Amount | "all", "half"] - Play a blackjack game
 
 
 ### __*Aura Officer Commands :*__

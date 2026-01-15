@@ -15,6 +15,7 @@ save_json(HISTORY_FILE, history)
 # Import commands and events so they register with the bot
 import modules.commands  # noqa: E402,F401
 import modules.events    # noqa: E402,F401
+import modules.games
 
 
 async def setup_hook():
