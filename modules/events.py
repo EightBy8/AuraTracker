@@ -1,5 +1,6 @@
 # modules/events.py
 import discord
+from discord.ext import commands
 from modules.bot_setup import bot
 from modules.daily_tasks import save_config
 from modules.utils import log
@@ -85,3 +86,19 @@ async def on_reaction_remove(reaction: discord.Reaction, user: discord.User | di
 
     except Exception as e:
         log(f"Error in on_reaction_remove: {e}", "ERROR")
+
+
+@bot.event
+async def on_command_error(ctx, error):
+    # Command not found
+    if isinstance(error, commands.CommandNotFound):
+        log(f"{ctx.author} entered a invalid command","WARNING")
+        return await ctx.send("That command does not exist. Try `?help`")
+
+    elif isinstance(error, commands.MissingRequiredArgument):
+        log(f"{ctx.author} forgot arugments in their command", "WARNING")
+        return await ctx.send("You forgot to include the amount!")
+
+    else:
+        log(f"UNHANDELED ERROR {error}", "ERROR")
+

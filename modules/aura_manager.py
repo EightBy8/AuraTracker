@@ -95,7 +95,7 @@ def set_aura(user_id: int, amount: int) -> None:
     log(f"Set aura for {user_id}: {amount}", "INFO")
 
 
-def update_aura(user_id: int, change: int) -> None:
+def update_aura(user_id: int, change: int, name: str = "Unkown") -> None:
     """
     Apply a relative change to a user's aura (positive or negative),
     save to disk and log.
@@ -103,7 +103,7 @@ def update_aura(user_id: int, change: int) -> None:
     uid: str = str(user_id)
     aura_data[uid] = aura_data.get(uid, 0) + int(change)
     save_json(AURA_FILE, aura_data)
-    log(f"Updated aura for {user_id}: {aura_data[uid]}", "INFO")
+    log(f"Updated aura for {name}: {aura_data[uid]}", "INFO")
 
 
 # ---- Aura-count-per-sender (positive / negative counts) ----
