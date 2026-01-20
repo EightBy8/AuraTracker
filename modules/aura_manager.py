@@ -95,7 +95,7 @@ def set_aura(user_id: int, amount: int) -> None:
     log(f"Set aura for {user_id}: {amount}", "INFO")
 
 
-def update_aura(user_id: int, change: int, name: str = "Unkown") -> None:
+def update_aura(user_id: int, change: int, name: str = "Unknown") -> None:
     """
     Apply a relative change to a user's aura (positive or negative),
     save to disk and log.
@@ -147,3 +147,15 @@ def get_negative_leaderboard() -> list[tuple[str, int]]:
         key=lambda x: x[1],
         reverse=True,
     )
+
+# ---- Game Lock/Unlock ----
+activePlayers = set()
+
+def isBusy(user_id):
+    return user_id in activePlayers
+def lockUser(user_id, name="Unknown",):
+    activePlayers.add(user_id)
+    log(f"{name} has been locked", "INFO")
+def unlockUser(user_id, name="Unknown"):
+    activePlayers.discard(user_id)
+    log(f"{name} has been unlocked", "INFO")

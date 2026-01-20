@@ -83,29 +83,6 @@ class testButton(discord.ui.View):
         log(f"{interaction.user.name.capitalize()} Cliked The Button","SUCCESS")
 
 
-@bot.command()
-async def testEmbed(ctx):
-    # 1. Get and sort data
-    data = aura_manager.aura_data
-    if not data:
-        await ctx.send("No data for leaderboard yet!")
-        return
-
-    sorted_aura = sorted(data.items(), key=lambda x: x[1], reverse=True)
-
-    # 2. Format the data into a list of strings for the paginator
-    formatted_data = []
-    for rank, (uid, score) in enumerate(sorted_aura, start=1):
-        prefix = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, str(rank))
-        formatted_data.append(f"{prefix}> <@{uid}> \n\u2003Aura: {score}\n")
-
-    # 3. Initialize the View and send the first page
-    view = pageTurn(formatted_data)
-    embed = view.createEmbed()
-    
-    # Send the embed AND the view (buttons)
-    await ctx.send(embed=embed, view=view)
-
 
 def load_aura_count() -> dict:
     """Load aura count (POS/NEG stats) from JSON file."""
@@ -180,12 +157,17 @@ async def test_daily(ctx):
 async def aura(ctx: commands.Context, member: discord.Member | None = None) -> None:
     member = member or ctx.author
     user_aura = aura_manager.aura_data.get(str(member.id), 0)
-    await ctx.send(f"{member.mention}'s aura: {user_aura}")
+    await ctx.send(f"{member.mention}'s aura: {user_aura:,}")
     log(f"Aura requested for {member} ({member.id})", "INFO")
 
 
 @bot.command()
-async def lb(ctx, page: int = 1): # Added page argument
+async def lb(ctx, page: int = 1):
+
+    # Check if user is in a game
+    if aura_manager.isBusy(ctx.author.id):
+        return await ctx.send(f"Finish your currnet game first!")
+
     # Define 'data' properly
     data = aura_manager.aura_data
     if not data:
@@ -197,8 +179,9 @@ async def lb(ctx, page: int = 1): # Added page argument
     # Format Data
     formatted_data = []
     for rank, (uid, score) in enumerate(sorted_aura, start=1):
+         formattedScore = f"{score:,}"
          prefix = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, str(rank))
-         formatted_data.append(f"{prefix}> <@{uid}> \n\u2003Aura: {score}\n")
+         formatted_data.append(f"{prefix}> <@{uid}> \n\u2003Aura: {formattedScore}\n")
     
     # Initialize the View
     view = leaderboardEmbed(
@@ -245,6 +228,10 @@ async def leaderboard_alias(ctx: commands.Context) -> None:
 async def give_aura(ctx: commands.Context, member: discord.Member, amount: str) -> None:
     giver_id = str(ctx.author.id)
     receiver_id = str(member.id)
+
+    # Check if user is in a game
+    if aura_manager.isBusy(ctx.author.id):
+        return await ctx.send(f"Finish your currnet game first!")
     
     # Get the giver's current balance
     currentAura = aura_manager.aura_data.get(giver_id, 0)
@@ -272,7 +259,7 @@ async def give_aura(ctx: commands.Context, member: discord.Member, amount: str) 
 
     # Check if they have enough
     if currentAura < amount:
-        return await ctx.send(f"You don't have enough aura to give {amount} points.")
+        return await ctx.send(f"You don't have enough aura to give {amount:,}.")
 
     # Transfer aura
     aura_manager.aura_data[giver_id] -= amount
@@ -281,7 +268,7 @@ async def give_aura(ctx: commands.Context, member: discord.Member, amount: str) 
     # Save to file
     aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
 
-    await ctx.send(f"{ctx.author.mention} gave **{amount}** aura to {member.mention}!")
+    await ctx.send(f"{ctx.author.mention} gave **{amount:,}** aura to {member.mention}!")
     log(f"{ctx.author.name.capitalize()} gave {amount} aura to {member.name.capitalize()}", "INFO")
 
 @bot.command()
@@ -290,7 +277,7 @@ async def set_aura(ctx: commands.Context, member: discord.Member, amount: int) -
     if ctx.author.id not in aura_manager.OWNER_IDS:
         return await ctx.send("You do not have permission to set the aura.")
     aura_manager.set_aura(member.id, amount)
-    await ctx.send(f"{member.mention} > New Balance: `{amount} Aura`")
+    await ctx.send(f"{member.mention} > New Balance: `{amount:,} Aura`")
     log(f"{authorName} set aura for {member} to {amount}", "INFO")
 
 
@@ -321,6 +308,10 @@ async def modify_aura(ctx: commands.Context, member: discord.Member, amount: int
 async def dslb(ctx, page: int = 1):
     """Show paginated leaderboard of who has given the most negative aura."""
     from modules.aura_manager import user_aura_count
+
+    # Check if user is in a game
+    if aura_manager.isBusy(ctx.author.id):
+        return await ctx.send(f"Finish your currnet game first!")
 
     # Filter only people with NEG > 0
     neg_scores = {uid: data["NEG"] for uid, data in user_aura_count.items() if data["NEG"] > 0}
@@ -362,6 +353,10 @@ async def slb(ctx: commands.Context, page: int = 1) -> None:
     """Show paginated Simp Leaderboard."""
     from modules.aura_manager import user_aura_count 
 
+    # Check if user is in a game
+    if aura_manager.isBusy(ctx.author.id):
+        return await ctx.send(f"Finish your currnet game first!")
+
     # 1. Filter only people with POS > 0
     pos_scores = {uid: data["POS"] for uid, data in user_aura_count.items() if data["POS"] > 0}
 
@@ -399,6 +394,10 @@ async def slb(ctx: commands.Context, page: int = 1) -> None:
     
 @bot.command()
 async def dailylb(ctx: commands.Context) -> None:
+    # Check if user is in a game
+    if aura_manager.isBusy(ctx.author.id):
+        return await ctx.send(f"Finish your currnet game first!")
+
     wait = seconds_until(9, 30)
     hours, minutes, seconds = int(wait // 3600), int((wait % 3600) // 60), int(wait % 60)
     await ctx.send(f"Time Until Daily Leaderboard: {hours}h {minutes}m {seconds}s")
@@ -418,8 +417,8 @@ async def help(ctx: commands.Context) -> None:
 - ?slb - shows who gives the most positive aura
 - ?dslb - shows who gives the most negative aura
 - ?dailylb - shows countdown for next daily leaderboard post
-- ?coinflip, ?cf - [Amount | "all", "half"] - Play a coinflip game
-- ?blackjack, ?bj - [Amount | "all", "half"] - Play a blackjack game
+- ?coinflip, ?cf - [Amount | "all", "half"] - play a coinflip game
+- ?blackjack, ?bj - [Amount | "all", "half"] - play a blackjack game
 
 
 ### __*Aura Officer Commands :*__
