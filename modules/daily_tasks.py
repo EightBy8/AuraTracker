@@ -175,7 +175,7 @@ async def send_leaderboard() -> None:
     random_message = get_random_aura_message()
     embed = view.createEmbed()
     
-    botText=f"||Test||**{random_message}**"
+    botText=f"||@here||**{random_message}**"
     await channel.send(content=botText, embed=embed, view=view)
 
     log("Daily Leaderboard Posted", "SUCCESS")
