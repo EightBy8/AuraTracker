@@ -120,9 +120,8 @@ async def blackjack(ctx, amount: str):
     authorName = str(ctx.author)
     user_id = str(ctx.author.id)
 
-    # Check if user is in a game
     if aura_manager.isBusy(ctx.author.id):
-        return await ctx.send(f"Finish your currnet game first!")
+        return await ctx.send(f"Finish your current game first!")
 
     currentAura = aura_manager.aura_data.get(user_id, 0)
 
@@ -140,12 +139,11 @@ async def blackjack(ctx, amount: str):
     if amount <= 0:
         return await ctx.send("Please Enter a Valid Amount")
     if currentAura < amount:
-        return await ctx.send(f"You Only Have {currentAura} Aura")
+        return await ctx.send(f"You Only Have **{currentAura:,}** Aura") # Added commas
 
     aura_manager.lockUser(ctx.author.id, name=ctx.author.display_name)
     
     try:
-        # INITIAL DEAL
         playerHand = [drawCard(), drawCard()]
         dealerHand = [drawCard(), drawCard()]
 
@@ -153,18 +151,18 @@ async def blackjack(ctx, amount: str):
         embed.add_field(name="Your Hand", value=f"{playerHand}\nScore: {calculateScore(playerHand)}")
         embed.add_field(name="Dealer's Hand", value=f"['{dealerHand[0]}', '❓']")
         
-        view = blackJackEmbed(ctx.author, amount) # Pass both here
+        view = blackJackEmbed(ctx.author, amount) 
         msg = await ctx.send(embed=embed, view=view)
 
-        # PLAYER GAME LOOP
         playing = True
         log(f"{authorName.capitalize()} Started a Blackjack game", "INFO")
+        
         while playing:
             current_score = calculateScore(playerHand)
             if current_score >= 21:
                 break
 
-            view = blackJackEmbed(ctx.author, amount) # MUST pass amount here too!
+            view = blackJackEmbed(ctx.author, amount)
             await msg.edit(embed=embed, view=view)
             await view.wait()
 
@@ -172,7 +170,6 @@ async def blackjack(ctx, amount: str):
                 playerHand.append(drawCard())
                 new_score = calculateScore(playerHand)
                 embed.set_field_at(0, name="Your Hand", value=f"{playerHand}\nScore: {new_score}")
-                await msg.edit(embed=embed, view=view)
                 if new_score >= 21:
                     playing = False
             elif view.choice == "stand":
@@ -181,20 +178,16 @@ async def blackjack(ctx, amount: str):
                 # --- TIMEOUT LOSS LOGIC ---
                 aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
                 aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
-
+                
+                # Define new_balance HERE for the timeout message
                 new_balance = aura_manager.aura_data.get(user_id, 0)
-
+                
                 log(f"{authorName.capitalize()} timed out and lost {amount} aura", "INFO")
+                
+                await msg.edit(content=f"⏰ **Timed out!** You lost **{amount:,}** Aura.", embed=None, view=None)
+                return await ctx.send(f"{ctx.author.mention} > New Balance: `{new_balance:,} Aura`")
 
-            await msg.edit(
-                    content=f"**Timed out!** you lost **{amount}** Aura.", 
-                    embed=None, 
-                    view=None
-                )
-            return await ctx.send(f"{ctx.author.mention} > New Balance: `{new_balance} Aura`")
-
-
-        # DEALER TURN (Dealer hits until 17)
+        # DEALER TURN
         playerFinal = calculateScore(playerHand)
         if playerFinal <= 21:
             while calculateScore(dealerHand) < 17:
@@ -202,50 +195,36 @@ async def blackjack(ctx, amount: str):
         
         dealerFinal = calculateScore(dealerHand)
         
-
         # DETERMINE WINNER
         if playerFinal > 21:
-            result = "BUST"
-            change = -amount
-            color = 0x992d22
-            log(f"{authorName.capitalize()} Lost {amount} aura in Blackjack", "INFO")
+            result, change, color = "BUST", -amount, 0x992d22
         elif dealerFinal > 21:
-            result = "DEALER BUSTED - YOU WIN!"
-            change = amount
-            color = 0x6dab18
-            log(f"{authorName.capitalize()} won {amount} aura in Blackjack", "INFO")
+            result, change, color = "DEALER BUSTED - YOU WIN!", amount, 0x6dab18
         elif playerFinal > dealerFinal:
-            result = "YOU WIN!"
-            change = amount
-            color = 0x6dab18
-            log(f"{authorName.capitalize()} won {amount} aura in Blackjack", "INFO")
+            result, change, color = "YOU WIN!", amount, 0x6dab18
         elif playerFinal < dealerFinal:
-            result = "DEALER WINS"
-            change = -amount
-            color = 0x992d22
-            log(f"{authorName.capitalize()} Lost {amount} aura in Blackjack", "INFO")
+            result, change, color = "DEALER WINS", -amount, 0x992d22
         else:
-            result = "PUSH (TIE)"
-            change = 0
-            color = 0x7289da
-            log(f"{authorName} tied in Blackjack", "INFO")
+            result, change, color = "PUSH (TIE)", 0, 0x7289da
 
         # UPDATE AURA
         if change != 0:
             aura_manager.update_aura(ctx.author.id, change, ctx.author.display_name)
             aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
 
+        # Define new_balance HERE for the normal end message
+        new_balance = aura_manager.aura_data.get(user_id, 0)
+
         # FINAL UI UPDATE
         finalEmbed = discord.Embed(title=f"Blackjack - {result}", color=color)
         finalEmbed.add_field(name="Your Hand", value=f"{playerHand}\nScore: {playerFinal}")
         finalEmbed.add_field(name="Dealer Hand", value=f"{dealerHand}\nScore: {dealerFinal}")
-        await ctx.send(f"{ctx.author.mention} > New Balance: `{new_balance} Aura`")
+        
         await msg.edit(embed=finalEmbed, view=None)
+        await ctx.send(f"{ctx.author.mention} > New Balance: `{new_balance:,} Aura`")
 
     except Exception as e:
         log(f"Blackjack Error: {e}", "ERROR")
-
-    # Unlocks User
     finally:
         aura_manager.unlockUser(ctx.author.id, name=ctx.author.display_name)
     # -------------------------------------------------------------------------------------------------------------------------------------------------------------------
