@@ -1,5 +1,3 @@
-Blizzah did all of this tbh
-
 # Aura Discord Bot
 
 This is a Discord bot that allows users to earn, track, and view their "aura" through reactions in Discord. The bot stores the aura data in a JSON file and features various commands and reactions to interact with the system. The bot is built using Python and utilizes the `discord.py` library.
