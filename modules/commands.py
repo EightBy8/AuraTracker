@@ -232,6 +232,8 @@ async def give_aura(ctx: commands.Context, member: discord.Member, amount: str) 
     # Check if user is in a game
     if aura_manager.isBusy(ctx.author.id):
         return await ctx.send(f"Finish your currnet game first!")
+    elif aura_manager.isBusy(member.id):
+        return await ctx.send(f"That user is currently in a game!")
     
     # Get the giver's current balance
     currentAura = aura_manager.aura_data.get(giver_id, 0)
