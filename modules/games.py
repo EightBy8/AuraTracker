@@ -6,6 +6,7 @@ from modules import aura_manager
 from modules.daily_tasks import save_config
 from modules.utils import log
 from modules.ui import coinFlipEmbed, blackJackEmbed
+from modules.aura_manager import unlockUser, lockUser, isBusy
 
 
 # COINFLIP GAME
@@ -17,9 +18,7 @@ async def coinflip(ctx, amount: str):
     # Check if user is in a game
     if aura_manager.isBusy(ctx.author.id):
         return await ctx.send(f"Finish your currnet game first!")
-    else:
-        aura_manager.lockUser(ctx.author.id, name=ctx.author.display_name)
- 
+    
 
     user_id = str(ctx.author.id)
     currentAura = aura_manager.aura_data.get(user_id, 0)
@@ -32,20 +31,18 @@ async def coinflip(ctx, amount: str):
         try:
             amount = int(amount)
         except ValueError:
-            aura_manager.unlockUserlockUser(ctx.author.id, name=ctx.author.display_name)
             return await ctx.send("Please enter a valid number or 'all'.")
 
     if amount <= 0:
-        aura_manager.unlockUserlockUser(ctx.author.id, name=ctx.author.display_name)
         return await ctx.send("Please Enter a Valid Amount")
     if currentAura < amount:
-        aura_manager.unlockUser(ctx.author.id, name=ctx.author.display_name)
         return await ctx.send(f"You Only Have {currentAura} Aura")
 
 
-    view = coinFlipEmbed(ctx.author, amount) 
-    msg = await ctx.send(f"**{authorName.capitalize()}** pick Heads or Tails for **{amount:,}** Aura!", view=view )
-    log(f"Heads or Tails Game started for {authorName.capitalize()}", "INFO")
+    view = coinFlipEmbed(ctx.author, amount)
+    aura_manager.lockUser(ctx.author.id, name=ctx.author.display_name)
+    msg = await ctx.send(f"**{ctx.author.mention}** pick Heads or Tails for **{amount:,}** Aura!", view=view )
+    log(f"Game started for {authorName.capitalize()}", "COINFLIP")
     await view.wait()
 
     if view.choice is None:
@@ -67,13 +64,13 @@ async def coinflip(ctx, amount: str):
             currentAura += amount
             outcome_text = f"**YOU WIN!** It was **{result.capitalize()}**.\n**✚{amount}** AURA!"
             log(f"{ctx.author.name.capitalize()} Won {amount:,} aura.","INFO")
-            await ctx.send(f"{ctx.author.mention} you now have {currentAura:,} aura!")
+            await ctx.send(f"{ctx.author.mention} > New Balance: `{currentAura:,} Aura`")
             color = 0x6dab18
         else:
             aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
             currentAura -= amount
             outcome_text = f"**YOU LOSE!** It was **{result.capitalize()}**.\n **━{amount}** AURA."
-            await ctx.send(f"{ctx.author.mention} you now have {currentAura} aura!")
+            await ctx.send(f"{ctx.author.mention} > New Balance: `{currentAura:,} Aura`")
             log(f"{ctx.author.name.capitalize()} Lost {amount} aura.","INFO")
             color = 0x992d22
 
@@ -152,10 +149,10 @@ async def blackjack(ctx, amount: str):
         embed.add_field(name="Dealer's Hand", value=f"['{dealerHand[0]}', '❓']")
         
         view = blackJackEmbed(ctx.author, amount) 
-        msg = await ctx.send(embed=embed, view=view)
+        msg = await ctx.send(f"{ctx.author.mention}'s Blackjack game for **{amount}** aura", embed=embed, view=view)
 
         playing = True
-        log(f"{authorName.capitalize()} Started a Blackjack game", "INFO")
+        log(f"Game started for {authorName.capitalize()}", "BLACKJACK")
         
         while playing:
             current_score = calculateScore(playerHand)
@@ -179,12 +176,11 @@ async def blackjack(ctx, amount: str):
                 aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
                 aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
                 
-                # Define new_balance HERE for the timeout message
                 new_balance = aura_manager.aura_data.get(user_id, 0)
                 
                 log(f"{authorName.capitalize()} timed out and lost {amount} aura", "INFO")
                 
-                await msg.edit(content=f"⏰ **Timed out!** You lost **{amount:,}** Aura.", embed=None, view=None)
+                await msg.edit(content=f"**Timed out!** You lost **{amount:,}** Aura.", embed=None, view=None)
                 return await ctx.send(f"{ctx.author.mention} > New Balance: `{new_balance:,} Aura`")
 
         # DEALER TURN

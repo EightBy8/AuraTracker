@@ -1,0 +1,40 @@
+{
+    "gain": [
+        "{mention} got `+{amount}` Aura before GTA 6.",
+        "{mention} wore a whire shirt and got 0 stains on it. `+{amount} Aura.`",
+        "{mention} found a $20 bill in their jacket. `+{amount}` Aura.",
+        "{mention} passed the quiz they didn’t study for. `+{amount}` Aura.",
+        "{mention} got multiple snacks from the vending machine `+{amount}` Aura.",
+        "{mention} parallel parked perfectly. `+{amount}` Aura.",
+        "{mention} perfectly ragebaited someone. `+{amount}` Aura.",
+        "{mention} clutched the 1v5 while the whole discord was watching. `+{amount}` Aura.",
+        "{mention} corrected the teacher and was actually right. `+{amount}` Aura.",
+        "{mention} caught their phone mid-air before it hit the concrete. `+{amount}` Aura.",
+        "{mention} successfully plugged the USB in on the first try. `+{amount}` Aura.",
+        "{mention} guessed the song within the first 0.5 seconds. `+{amount}` Aura.",
+        "{mention} corrected the GPS and was actually right. `+{amount}` Aura.",
+        "{mention} stopped the microwave at exactly 0:01. `+{amount}` Aura.",
+        "{mention} caught the waiter's attention with just a slight nod. `+{amount}` Aura."
+
+    ],
+
+    "loss": [
+        "{mention} tripped over nothing and lost `{amount}` Aura.",
+        "Haha get fucked {mention}. `{amount}` Aura",
+        "{mention} missed the trashcan 3 times and lost `{amount}` Aura.",
+        "Slow down {mention}. You're gonna lose all your aura like Javon did. `{amount}` Aura",
+        "{mention} told a joke and nobody laughed. `{amount}` Aura.",
+        "{mention} lost `{amount}` before GTA 6.",
+        "{mention}.... the tribe has spoken. `{amount} Aura.`",
+        "{mention} waved back at someone who wasn't waving at them. `{amount}` Aura.",
+        "{mention} got 'ratioed' by a bot account. `{amount}` Aura.",
+        "{mention} said 'you too' to the waiter who said 'enjoy your meal.' `{amount}` Aura.",
+        "{mention} tried to lean  against a wall and slipped. `-{amount}` Aura.",
+        "{mention} walked the wrong way, checked their phone, and did a 180 turn. `{amount}` Aura.",
+        "{mention} got cooked in the comments by a 12-year-old with an anime pfp. `{amount}` Aura.",
+        "{mention} tried to kick a ball and missed entirely. `-{amount}` Aura.",
+        "{mention} called their teacher 'Mom' in front of the whole class. `{amount}` Aura.",
+        "{mention} walked into a glass door because it was too clean. `{amount}` Aura.",
+        "{mention} realized their mic was unmuted while they were singing poorly. `{amount}` Aura."
+    ]
+}

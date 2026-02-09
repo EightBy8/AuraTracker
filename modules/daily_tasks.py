@@ -4,10 +4,11 @@ import os
 import random
 import json
 from discord import Embed, Color, TextChannel
+from discord.ext import tasks
 from modules.bot_setup import bot
 from modules import aura_manager
 from modules.utils import log, seconds_until
-from modules.ui import leaderboardEmbed
+from modules.ui import leaderboardEmbed, randomButton
 
 CONFIG_FILE: str = os.path.join("data", "config.json")
 LINES_FILE: str = os.path.join("data", "dailyLines.json")
@@ -48,7 +49,7 @@ async def daily_aura_snapshot() -> None:
     while not bot.is_closed():
         wait_seconds: float = seconds_until(9, 29)
         hours, minutes, seconds = int(wait_seconds // 3600), int((wait_seconds % 3600) // 60), int(wait_seconds % 60)
-        log(f"[Snapshot] Waiting {hours}h {minutes}m {seconds}s until next run", "WARNING")
+        log(f"Waiting {hours}h {minutes}m {seconds}s until next run", "SNAPSHOT")
         await asyncio.sleep(wait_seconds)
 
         await take_snapshot()
@@ -138,7 +139,7 @@ async def post_daily_leaderboard() -> None:
         wait_seconds: float = seconds_until(9, 30)
         # wait_seconds: float = 10
         hours, minutes, seconds = int(wait_seconds // 3600), int((wait_seconds % 3600) // 60), int(wait_seconds % 60)
-        log(f"[Leaderboard] Waiting {hours}h {minutes}m {seconds}s until next post", "WARNING")
+        log(f"Waiting {hours}h {minutes}m {seconds}s until next post", "LEADERBOARD")
         await asyncio.sleep(wait_seconds)
 
         await send_leaderboard()
@@ -179,3 +180,36 @@ async def send_leaderboard() -> None:
     await channel.send(content=botText, embed=embed, view=view)
 
     log("Daily Leaderboard Posted", "SUCCESS")
+
+
+async def spawn_aura_button() -> None:
+    await bot.wait_until_ready()
+
+    if aura_manager.CHANNEL_ID is None:
+        log("CHANNEL_ID not set. Skipping button spawns", "RANDOM BUTTON")
+        return
+    
+    channel = bot.get_channel(aura_manager.CHANNEL_ID)
+    if channel is None:
+        log(f"Channel {aura_manager.CHANNEL_ID} not found. Cannot spawn random button", "RANDOM BUTTON")
+        return
+    
+    while not bot.is_closed():
+        try:
+            # Calculate next spawn time
+            next_spawn = datetime.datetime.now() + datetime.timedelta(minutes=30)
+            log(f"Next check scheduled at {next_spawn.strftime('%H:%M:%S')}", "RANDOM BUTTON")
+            
+            await asyncio.sleep(30 * 60) # 30 Minutes
+            if random.choice([True, False]): # 50% Chance
+                channel = bot.get_channel(aura_manager.CHANNEL_ID)
+                if channel is None:
+                    log(f"Channel {aura_manager.CHANNEL_ID} not found. Skipping this spawn", "RANDOM BUTTON")
+                    continue
+                view = randomButton()
+                await channel.send("Click this button for a chance to get some aura!", view=view)
+                log("Button spawned", "RANDON BUTTON")
+            else:
+                log("Button did not spawn this time.", "RANDOM BUTTON")
+        except Exception as e:
+            log(f"Error during random aura spawn: {e}", "ERROR")

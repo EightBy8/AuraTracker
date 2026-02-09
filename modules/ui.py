@@ -1,5 +1,9 @@
 import discord
+import json
+import os
+import random
 from modules.utils import log
+from modules.aura_manager import isBusy, lockUser, unlockUser, update_aura, aura_data
 
 
 # Leaderboard embed with pageturn
@@ -104,3 +108,67 @@ class blackJackEmbed(discord.ui.View):
         self.choice = "stand"
         await interaction.response.defer()
         self.stop()
+
+
+class randomButton(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=120)
+        self.clicked = False
+
+        # Load gain/loss messages
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # auraTracker/
+        filePath = os.path.join(BASE_DIR,"..","data","randomMessages.json") 
+        with open(filePath, "r") as f:
+            self.messages = json.load(f)
+
+    @discord.ui.button(label="Click Me", style=discord.ButtonStyle.blurple)
+    async def clickedButton(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.clicked:
+            return
+        self.clicked = True
+
+        log("Button Pressed", "RANDOM BUTTON")
+
+        # Randomly decide gain or loss
+        gain = random.choice([True, False])
+        if gain:
+            auraChange = random.randint(1, 15)
+        else:
+            auraChange = -random.randint(1, 20)
+
+        # Pick a message template once
+        msg_template = random.choice(self.messages["gain"] if gain else self.messages["loss"])
+
+        # Format message with mention and aura change
+        msg = msg_template.format(mention=interaction.user.mention, amount=auraChange)
+
+        # Update aura
+        update_aura(interaction.user.id, auraChange, user_obj=interaction.user)
+
+        # Get new balance
+        new_balance = aura_data.get(str(interaction.user.id), 0)
+
+
+        # Disable all buttons in the view
+        for child in self.children:
+            child.disabled = True
+
+        # Edit original message
+        await interaction.response.edit_message(
+            content="~~Click this button for some aura! (or not)~~",
+            view=self
+        )
+
+        # Send a new message with the result
+        await interaction.channel.send(msg)
+        await interaction.channel.send(f"> New Balance: `{new_balance:,} Aura`")
+
+        # Stop the view to clean up
+        self.stop()
+    
+    async def on_timeout(self):
+        # Disable all buttons when the view times out
+        for child in self.children:
+            child.disabled = True
+        if self.message:
+            await self.message.edit(content="~~This button has expired~~", view=self)

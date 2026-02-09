@@ -95,15 +95,23 @@ def set_aura(user_id: int, amount: int) -> None:
     log(f"Set aura for {user_id}: {amount}", "INFO")
 
 
-def update_aura(user_id: int, change: int, name: str = "Unknown") -> None:
+def update_aura(user_id: int, change: int, name: str | None = None, user_obj=None) -> None:
     """
     Apply a relative change to a user's aura (positive or negative),
     save to disk and log.
     """
-    uid: str = str(user_id)
+    uid = str(user_id)
     aura_data[uid] = aura_data.get(uid, 0) + int(change)
     save_json(AURA_FILE, aura_data)
-    log(f"Updated aura for {name}: {aura_data[uid]}", "INFO")
+
+    if name is not None:
+        logName = name
+    elif user_obj is not None:
+        logName = getattr(user_obj, "name", str(user_id)).capitalize()
+    else:
+        logName = str(user_id)
+
+    log(f"Updated aura for {logName}: {aura_data[uid]}", "INFO")
 
 
 # ---- Aura-count-per-sender (positive / negative counts) ----

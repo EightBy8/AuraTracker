@@ -8,7 +8,7 @@ from modules.bot_setup import bot
 from modules.daily_tasks import save_config, load_config
 from modules import aura_manager
 from modules.utils import log, seconds_until
-from modules.ui import leaderboardEmbed
+from modules.ui import leaderboardEmbed, randomButton
 from discord import Embed
 
 # Path to auraCount.json
@@ -71,7 +71,6 @@ class pageTurn(discord.ui.View):
         await interaction.response.edit_message(embed=newEmbed, view=self)
         log(f"{interaction.user.name.capitalize()} Turned the page", "INFO")
 
-
 class testButton(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None) # The button dies NEVER!
@@ -98,7 +97,7 @@ async def set_channel(ctx: commands.Context) -> None:
     if ctx.author.id not in aura_manager.OWNER_IDS:
         return await ctx.send("You do not have permission to set channels.")
 
-    aura_manager.CHANNEL_ID = ctx.channel.id  # <-- update this
+    aura_manager.CHANNEL_ID = ctx.channel.id  
     save_config()  # this now saves the correct CHANNEL_ID
     await ctx.send(f"Daily leaderboard channel set to {ctx.channel.mention}")
     log(f"Daily leaderboard channel set to {ctx.channel.id} by {ctx.author}", "INFO")
@@ -179,10 +178,10 @@ async def lb(ctx, page: int = 1):
     # Format Data
     formatted_data = []
     for rank, (uid, score) in enumerate(sorted_aura, start=1):
-         formattedScore = f"{score:,}"
-         prefix = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, str(rank))
-         formatted_data.append(f"{prefix}> <@{uid}> \n\u2003Aura: {formattedScore}\n")
-    
+        formattedScore = f"{score:,}"
+        prefix = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, str(rank))
+        formatted_data.append(f"{prefix}> <@{uid}> \n\u2003Aura: {formattedScore}\n")
+
     # Initialize the View
     view = leaderboardEmbed(
         data=formatted_data, 
@@ -202,7 +201,7 @@ async def lb(ctx, page: int = 1):
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # OLD LEADERBOARD EMBED, WONT WORK WITH OVER 20 MEMBERS
- 
+
 # async def lb(ctx: commands.Context) -> None:
 #     if not aura_manager.aura_data:
 #         await ctx.send("No aura yet!")
@@ -432,3 +431,9 @@ async def help(ctx: commands.Context) -> None:
 
 """
     )
+
+
+@bot.command()
+async def randomTest(ctx: commands.Context) -> None:
+    view = randomButton()
+    await ctx.send("Click this button for some aura! (or not)", view=view)
