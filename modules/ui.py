@@ -131,15 +131,15 @@ class randomButton(discord.ui.View):
 
         # Randomly decide gain or loss
         gain = random.randint(1,100)
-        if gain < 40:
+        if gain < 60:
             auraChange = random.randint(1, 15)
-            print("gain")
+            print(f"gain {gain}")
         else:
             auraChange = -random.randint(1, 10)
-            print("loss")
+            print(f"loss {gain}")
 
         # Pick a message template once
-        msg_template = random.choice(self.messages["gain"] if gain < 40 else self.messages["loss"])
+        msg_template = random.choice(self.messages["gain"] if gain < 60 else self.messages["loss"])
 
         # Format message with mention and aura change
         msg = msg_template.format(mention=interaction.user.mention, amount=auraChange)
