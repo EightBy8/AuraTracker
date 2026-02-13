@@ -201,7 +201,7 @@ async def spawn_aura_button() -> None:
             log(f"Next check scheduled at {next_spawn.strftime('%H:%M:%S')}", "RANDOM BUTTON")
             
             await asyncio.sleep(30 * 60) # 30 Minutes
-            if random.choice([True, False]): # 50% Chance
+            if random.choice([True,False]):
                 channel = bot.get_channel(aura_manager.CHANNEL_ID)
                 if channel is None:
                     log(f"Channel {aura_manager.CHANNEL_ID} not found. Skipping this spawn", "RANDOM BUTTON")
