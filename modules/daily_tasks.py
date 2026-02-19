@@ -207,7 +207,9 @@ async def spawn_aura_button() -> None:
                     log(f"Channel {aura_manager.CHANNEL_ID} not found. Skipping this spawn", "RANDOM BUTTON")
                     continue
                 view = randomButton()
-                await channel.send("Click this button for a chance to get some aura!", view=view)
+                message = await channel.send("Click this button for a chance to get some aura!", view=view)
+                view.message = message
+
                 log("Button spawned", "RANDON BUTTON")
             else:
                 log("Button did not spawn this time.", "RANDOM BUTTON")

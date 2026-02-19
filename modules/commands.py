@@ -438,4 +438,5 @@ async def randomTest(ctx: commands.Context) -> None:
     if ctx.author.id not in aura_manager.OWNER_IDS:
         return await ctx.send("This command shouldn't even be here....")
     view = randomButton()
-    await ctx.send("Click this button for some aura! (or not)", view=view)
+    message = await ctx.send("Click this button for some aura! (or not)", view=view)
+    view.message = message

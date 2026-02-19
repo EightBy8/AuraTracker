@@ -130,16 +130,19 @@ class randomButton(discord.ui.View):
         log("Button Pressed", "RANDOM BUTTON")
 
         # Randomly decide gain or loss
-        gain = random.randint(1,100)
-        if gain < 60:
-            auraChange = random.randint(1, 15)
-            print(f"gain {gain}")
+        roll = random.randint(1,100)
+        win_con = 50
+
+        if roll <= win_con:
+            auraChange = random.randint(1,15)
+            print(f"gain {auraChange}")
         else:
-            auraChange = -random.randint(1, 10)
-            print(f"loss {gain}")
+            auraChange = -random.randint(1,10)
+            print(f"loss {auraChange}")
 
         # Pick a message template once
-        msg_template = random.choice(self.messages["gain"] if gain < 60 else self.messages["loss"])
+        msg_template = f"-# Rolled a {roll}\n"
+        msg_template += random.choice(self.messages["gain"]) if roll <= win_con else random.choice(self.messages["loss"])
 
         # Format message with mention and aura change
         msg = msg_template.format(mention=interaction.user.mention, amount=auraChange)
@@ -150,27 +153,23 @@ class randomButton(discord.ui.View):
         # Get new balance
         new_balance = aura_data.get(str(interaction.user.id), 0)
 
-
-        # Disable all buttons in the view
-        for child in self.children:
-            child.disabled = True
-
         # Edit original message
-        await interaction.response.edit_message(
-            content="~~Click this button for some aura! (or not)~~",
-            view=self
-        )
+        if hasattr(self, 'message') and self.message:
+            try:
+                await self.message.delete()
+            except discord.NotFound:
+                pass
 
         # Send a new message with the result
-        await interaction.channel.send(msg)
-        await interaction.channel.send(f"> New Balance: `{new_balance:,} Aura`")
+        await interaction.channel.send(f"{msg}\n> New Balance: `{new_balance:,} Aura`")
 
         # Stop the view to clean up
         self.stop()
     
     async def on_timeout(self):
         # Disable all buttons when the view times out
-        for child in self.children:
-            child.disabled = True
-        if self.message:
-            await self.message.edit(content="~~This button has expired~~", view=self)
+        if hasattr(self, 'message') and self.message:
+            try:
+                await self.message.delete()
+            except discord.NotFound:
+                pass
