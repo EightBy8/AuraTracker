@@ -29,10 +29,10 @@
         "{mention} waved back at someone who wasn't waving at them. `{amount}` Aura.",
         "{mention} got 'ratioed' by a bot account. `{amount}` Aura.",
         "{mention} said 'you too' to the waiter who said 'enjoy your meal.' `{amount}` Aura.",
-        "{mention} tried to lean  against a wall and slipped. `-{amount}` Aura.",
+        "{mention} tried to lean  against a wall and slipped. `{amount}` Aura.",
         "{mention} walked the wrong way, checked their phone, and did a 180 turn. `{amount}` Aura.",
         "{mention} got cooked in the comments by a 12-year-old with an anime pfp. `{amount}` Aura.",
-        "{mention} tried to kick a ball and missed entirely. `-{amount}` Aura.",
+        "{mention} tried to kick a ball and missed entirely. `{amount}` Aura.",
         "{mention} called their teacher 'Mom' in front of the whole class. `{amount}` Aura.",
         "{mention} walked into a glass door because it was too clean. `{amount}` Aura.",
         "{mention} realized their mic was unmuted while they were singing poorly. `{amount}` Aura."
