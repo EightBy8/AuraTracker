@@ -11,15 +11,18 @@ def log(message: str, level: str = "INFO") -> None:
     """
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     colors = {
-        "INFO":        Fore.CYAN,      # Informational messages
-        "ERROR":       Fore.RED,       # Errors
-        "SUCCESS":     Fore.GREEN,     # Successful operations
-        "WARNING":     Fore.YELLOW,    # Warnings
-        "SNAPSHOT":    Fore.BLUE,      # Snapshot-related messages
-        "LEADERBOARD": Fore.BLUE,      # Leaderboard messages
-        "COINFLIP": Fore.MAGENTA,      # Coinflip Messages
-        "BLACKJACK": Fore.MAGENTA,     # Blackjack Messages
-        "RANDOM BUTTON": Fore.MAGENTA     # Random Button Messages 
+        "INFO":        Fore.CYAN,       # Informational messages
+        "CF_INFO":     Fore.CYAN,       # Coinflip Messages
+        "BJ_INFO":     Fore.CYAN,       # Blackjack Messages
+        "BUTTON_INFO": Fore.CYAN,        # Random Button Messages 
+        "ERROR":       Fore.RED,        # Errors
+        "SUCCESS":     Fore.GREEN,      # Successful operations
+        "WARNING":     Fore.YELLOW,     # Warnings
+        "SNAPSHOT":    Fore.BLUE,       # Snapshot-related messages
+        "LEADERBOARD": Fore.BLUE,       # Leaderboard messages
+        "COINFLIP":    Fore.MAGENTA,    # Coinflip Messages
+        "BLACKJACK":   Fore.MAGENTA,    # Blackjack Messages
+        "BUTTON":      Fore.MAGENTA     # Random Button Messages 
     }    
     color = colors.get(level, "")
     print(color + f"[{timestamp}] [{level}] {message}")

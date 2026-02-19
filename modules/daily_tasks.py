@@ -186,32 +186,32 @@ async def spawn_aura_button() -> None:
     await bot.wait_until_ready()
 
     if aura_manager.CHANNEL_ID is None:
-        log("CHANNEL_ID not set. Skipping button spawns", "RANDOM BUTTON")
+        log("CHANNEL_ID not set. Skipping button spawns", "BUTTON_INFO")
         return
     
     channel = bot.get_channel(aura_manager.CHANNEL_ID)
     if channel is None:
-        log(f"Channel {aura_manager.CHANNEL_ID} not found. Cannot spawn random button", "RANDOM BUTTON")
+        log(f"Channel {aura_manager.CHANNEL_ID} not found. Cannot spawn random button", "BUTTON_INFO")
         return
     
     while not bot.is_closed():
         try:
             # Calculate next spawn time
             next_spawn = datetime.datetime.now() + datetime.timedelta(minutes=30)
-            log(f"Next check scheduled at {next_spawn.strftime('%H:%M:%S')}", "RANDOM BUTTON")
+            log(f"Next check scheduled at {next_spawn.strftime('%H:%M:%S')}", "BUTTON_INFO")
             
             await asyncio.sleep(30 * 60) # 30 Minutes
             if random.choice([True,False]):
                 channel = bot.get_channel(aura_manager.CHANNEL_ID)
                 if channel is None:
-                    log(f"Channel {aura_manager.CHANNEL_ID} not found. Skipping this spawn", "RANDOM BUTTON")
+                    log(f"Channel {aura_manager.CHANNEL_ID} not found. Skipping this spawn", "BUTTON_INFO")
                     continue
                 view = randomButton()
                 message = await channel.send("Click this button for a chance to get some aura!", view=view)
                 view.message = message
 
-                log("Button spawned", "RANDON BUTTON")
+                log("Button spawned", "BUTTON_INFO")
             else:
-                log("Button did not spawn this time.", "RANDOM BUTTON")
+                log("Button did not spawn this time.", "BUTTON_INFO")
         except Exception as e:
             log(f"Error during random aura spawn: {e}", "ERROR")

@@ -270,7 +270,7 @@ async def give_aura(ctx: commands.Context, member: discord.Member, amount: str) 
     aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
 
     await ctx.send(f"{ctx.author.mention} gave **{amount:,}** aura to {member.mention}!")
-    log(f"{ctx.author.name.capitalize()} gave {amount} aura to {member.name.capitalize()}", "INFO")
+    log(f"{ctx.author.name.capitalize()} gave {amount} aura to {member.name.capitalize()}", "DONATE")
 
 @bot.command()
 async def set_aura(ctx: commands.Context, member: discord.Member, amount: int) -> None:

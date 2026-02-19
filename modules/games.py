@@ -42,7 +42,7 @@ async def coinflip(ctx, amount: str):
     view = coinFlipEmbed(ctx.author, amount)
     aura_manager.lockUser(ctx.author.id, name=ctx.author.display_name)
     msg = await ctx.send(f"**{ctx.author.mention}** pick Heads or Tails for **{amount:,}** Aura!", view=view )
-    log(f"Game started for {authorName.capitalize()}", "COINFLIP")
+    log(f"Game started for {authorName.capitalize()}", "CF_INFO")
     await view.wait()
 
     if view.choice is None:
@@ -63,7 +63,7 @@ async def coinflip(ctx, amount: str):
             aura_manager.update_aura(ctx.author.id, amount, ctx.author.display_name)
             currentAura += amount
             outcome_text = f"**YOU WIN!** It was **{result.capitalize()}**.\n**✚{amount}** AURA!"
-            log(f"{ctx.author.name.capitalize()} Won {amount:,} aura.","INFO")
+            log(f"{ctx.author.name.capitalize()} Won {amount:,} aura.","COINFLIP")
             await ctx.send(f"{ctx.author.mention} > New Balance: `{currentAura:,} Aura`")
             color = 0x6dab18
         else:
@@ -71,7 +71,7 @@ async def coinflip(ctx, amount: str):
             currentAura -= amount
             outcome_text = f"**YOU LOSE!** It was **{result.capitalize()}**.\n **━{amount}** AURA."
             await ctx.send(f"{ctx.author.mention} > New Balance: `{currentAura:,} Aura`")
-            log(f"{ctx.author.name.capitalize()} Lost {amount} aura.","INFO")
+            log(f"{ctx.author.name.capitalize()} Lost {amount} aura.","COINFLIP")
             color = 0x992d22
 
         aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
@@ -152,7 +152,7 @@ async def blackjack(ctx, amount: str):
         msg = await ctx.send(f"{ctx.author.mention}'s Blackjack game for **{amount}** aura", embed=embed, view=view)
 
         playing = True
-        log(f"Game started for {authorName.capitalize()}", "BLACKJACK")
+        log(f"Game started for {authorName.capitalize()}", "BJ_INFO")
         
         while playing:
             current_score = calculateScore(playerHand)
@@ -178,7 +178,7 @@ async def blackjack(ctx, amount: str):
                 
                 new_balance = aura_manager.aura_data.get(user_id, 0)
                 
-                log(f"{authorName.capitalize()} timed out and lost {amount} aura", "INFO")
+                log(f"{authorName.capitalize()} timed out and lost {amount} aura", "BLACKJACK")
                 
                 await msg.edit(content=f"**Timed out!** You lost **{amount:,}** Aura.", embed=None, view=None)
                 return await ctx.send(f"{ctx.author.mention} > New Balance: `{new_balance:,} Aura`")
