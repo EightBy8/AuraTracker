@@ -9,7 +9,7 @@ def log(message: str, level: str = "INFO") -> None:
     """
     Simple timestamped logger using colorama.
     """
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
     colors = {
         "INFO":        Fore.CYAN,       # Informational messages
         "CF_INFO":     Fore.CYAN,       # Coinflip Messages

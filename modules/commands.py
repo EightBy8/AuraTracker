@@ -99,8 +99,8 @@ async def set_channel(ctx: commands.Context) -> None:
 
     aura_manager.CHANNEL_ID = ctx.channel.id  
     save_config()  # this now saves the correct CHANNEL_ID
-    await ctx.send(f"Daily leaderboard channel set to {ctx.channel.mention}")
-    log(f"Daily leaderboard channel set to {ctx.channel.id} by {ctx.author}", "INFO")
+    await ctx.send(f"Events will now be sent in {ctx.channel.mention}")
+    log(f"Event channel set to {ctx.channel.id} by {ctx.author}", "INFO")
 
 @bot.command()
 async def add_officer(ctx: commands.Context, member: discord.Member) -> None:
