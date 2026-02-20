@@ -127,7 +127,7 @@ class randomButton(discord.ui.View):
             return
         self.clicked = True
 
-        log("Button Pressed", "RANDOM BUTTON")
+        log("Button Pressed", "BUTTON")
 
         # Randomly decide gain or loss
         roll = random.randint(1,100)
@@ -135,10 +135,10 @@ class randomButton(discord.ui.View):
 
         if roll <= win_con:
             auraChange = random.randint(1,15)
-            print(f"gain {auraChange}")
+            log("{interaction.user} {auraChange}", "BUTTON")
         else:
             auraChange = -random.randint(1,10)
-            print(f"loss {auraChange}")
+            log("{interaction.user} {auraChange}", "BUTTON")
 
         # Pick a message template once
         msg_template = f"-# Rolled a {roll}\n"
