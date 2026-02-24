@@ -127,8 +127,6 @@ class randomButton(discord.ui.View):
             return
         self.clicked = True
 
-        log("Button Pressed", "BUTTON")
-
         # Randomly decide gain or loss
         roll = random.randint(1,100)
         win_con = 50
