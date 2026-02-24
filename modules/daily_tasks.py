@@ -200,7 +200,7 @@ async def spawn_aura_button() -> None:
             next_spawn = datetime.datetime.now() + datetime.timedelta(minutes=30)
             log(f"Next check scheduled at {next_spawn.strftime('%H:%M:%S')}", "BUTTON_INFO")
             
-            await asyncio.sleep(30 * 60) # 30 Minutes
+            await asyncio.sleep(25 * 60) # 30 Minutes
             if random.choice([True,False]):
                 channel = bot.get_channel(aura_manager.CHANNEL_ID)
                 if channel is None:

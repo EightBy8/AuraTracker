@@ -112,7 +112,7 @@ class blackJackEmbed(discord.ui.View):
 
 class randomButton(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout=120)
+        super().__init__(timeout=300)
         self.clicked = False
 
         # Load gain/loss messages
@@ -134,10 +134,10 @@ class randomButton(discord.ui.View):
         win_con = 50
 
         if roll <= win_con:
-            auraChange = random.randint(1,15)
+            auraChange = random.randint(1,20)
             log(f"{interaction.user.name.capitalize()} gain {auraChange}", "BUTTON")
         else:
-            auraChange = -random.randint(1,10)
+            auraChange = -random.randint(1,15)
             log(f"{interaction.user.name.capitalize()} loss {auraChange}", "BUTTON")
 
         # Pick a message template once

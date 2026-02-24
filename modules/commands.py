@@ -434,9 +434,9 @@ async def help(ctx: commands.Context) -> None:
 
 
 @bot.command()
-async def randomTest(ctx: commands.Context) -> None:
+async def spawnButton(ctx: commands.Context) -> None:
     if ctx.author.id not in aura_manager.OWNER_IDS:
-        return await ctx.send("This command shouldn't even be here....")
+        return await ctx.send("Only officers can spawn buttons..")
     view = randomButton()
     message = await ctx.send("Click this button for some aura! (or not)", view=view)
     view.message = message
