@@ -197,8 +197,8 @@ async def spawn_aura_button() -> None:
     while not bot.is_closed():
         try:
             # Calculate next spawn time
-            next_spawn = datetime.datetime.now() + datetime.timedelta(minutes=30)
-            log(f"Next check scheduled at {next_spawn.strftime('%H:%M:%S')}", "BUTTON_INFO")
+            next_spawn = datetime.datetime.now() + datetime.timedelta(minutes=25)
+            log(f"Next check scheduled at {next_spawn.strftime('%I: %M: %s: %p')}", "BUTTON_INFO")
             
             await asyncio.sleep(25 * 60) # 30 Minutes
             if random.choice([True,False]):
