@@ -14,7 +14,8 @@ def log(message: str, level: str = "INFO") -> None:
         "INFO":        Fore.CYAN,       # Informational messages
         "CF_INFO":     Fore.CYAN,       # Coinflip Messages
         "BJ_INFO":     Fore.CYAN,       # Blackjack Messages
-        "BUTTON_INFO": Fore.CYAN,        # Random Button Messages 
+        "HL_INFO":     Fore.CYAN,       # Higher/Lower start messages
+        "BUTTON_INFO": Fore.CYAN,       # Random Button Messages 
         "ERROR":       Fore.RED,        # Errors
         "SUCCESS":     Fore.GREEN,      # Successful operations
         "WARNING":     Fore.YELLOW,     # Warnings
@@ -22,7 +23,9 @@ def log(message: str, level: str = "INFO") -> None:
         "LEADERBOARD": Fore.BLUE,       # Leaderboard messages
         "COINFLIP":    Fore.MAGENTA,    # Coinflip Messages
         "BLACKJACK":   Fore.MAGENTA,    # Blackjack Messages
-        "BUTTON":      Fore.MAGENTA     # Random Button Messages 
+        "BUTTON":      Fore.MAGENTA,    # Random Button Messages 
+        "HIGHERLOWER": Fore.MAGENTA     # Higher/Lower outcome messages
+
     }    
     color = colors.get(level, "")
     print(color + f"[{timestamp}] [{level}] {message}")

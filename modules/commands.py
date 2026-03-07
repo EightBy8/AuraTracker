@@ -420,6 +420,8 @@ async def help(ctx: commands.Context) -> None:
 - ?dailylb - shows countdown for next daily leaderboard post
 - ?coinflip, ?cf - [Amount | "all", "half"] - play a coinflip game
 - ?blackjack, ?bj - [Amount | "all", "half"] - play a blackjack game
+- ?higherlower, ?hl - [Amount | "all", "half"] - play a higher/lower game (Min 10)
+
 
 
 ### __*Aura Officer Commands :*__

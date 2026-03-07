@@ -171,3 +171,33 @@ class randomButton(discord.ui.View):
                 await self.message.delete()
             except discord.NotFound:
                 pass
+
+class higherLowerEmbed(discord.ui.View):
+    def __init__(self, user):
+        super().__init__(timeout=60)
+        self.user = user
+        self.choice = None
+
+    @discord.ui.button(label="Higher", style=discord.ButtonStyle.primary)
+    async def higher(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user != self.user:
+            return await interaction.response.send_message("This isn't your game!", ephemeral=True)
+        self.choice = "higher"
+        await interaction.response.defer()
+        self.stop()
+
+    @discord.ui.button(label="Lower", style=discord.ButtonStyle.secondary)
+    async def lower(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user != self.user:
+            return await interaction.response.send_message("This isn't your game!", ephemeral=True)
+        self.choice = "lower"
+        await interaction.response.defer()
+        self.stop()
+
+    @discord.ui.button(label="Cash Out", style=discord.ButtonStyle.success)
+    async def cashout(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user != self.user:
+            return await interaction.response.send_message("This isn't your game!", ephemeral=True)
+        self.choice = "quit"
+        await interaction.response.defer()
+        self.stop() 

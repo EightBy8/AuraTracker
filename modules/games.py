@@ -1,13 +1,14 @@
 import discord
 import random
 import time
-from modules.bot_setup import bot
+from math import ceil
 from modules import aura_manager
-from modules.daily_tasks import save_config
-from modules.utils import log
-from modules.ui import coinFlipEmbed, blackJackEmbed
+from modules.bot_setup import bot
 from modules.aura_manager import unlockUser, lockUser, isBusy
-
+from modules.daily_tasks import save_config
+from modules.ui import coinFlipEmbed, blackJackEmbed
+from modules.ui import higherLowerEmbed
+from modules.utils import log
 
 # COINFLIP GAME
 
@@ -223,4 +224,130 @@ async def blackjack(ctx, amount: str):
         log(f"Blackjack Error: {e}", "ERROR")
     finally:
         aura_manager.unlockUser(ctx.author.id, name=ctx.author.display_name)
-    # -------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+@bot.command(aliases=['hl'])
+async def higherlower(ctx, amount: str):
+    authorName = str(ctx.author)
+    user_id = str(ctx.author.id)
+
+    if aura_manager.isBusy(ctx.author.id):
+        return await ctx.send("Finish your current game first!")
+
+    currentAura = aura_manager.aura_data.get(user_id, 0)
+
+    # Bet Amount Logic
+    if amount.lower() == "all":
+        amount = currentAura
+    elif amount.lower() == "half":
+        amount = currentAura // 2
+    else:
+        try:
+            amount = int(amount)
+        except ValueError:
+            return await ctx.send("Please enter a valid number, 'half', or 'all'.")
+
+    if amount < 10:
+        return await ctx.send("The minimum bet for Higher/Lower is **10** Aura.")
+    if currentAura < amount:
+        return await ctx.send(f"You Only Have **{currentAura:,}** Aura")
+
+    # Game Setup
+    MULT = [1.25, 1.25, 1.30, 1.40, 1.50]
+    dice = random.randint(1, 100)
+    pot = amount
+    turn = 0
+    playing = True
+    
+    aura_manager.lockUser(ctx.author.id, name=ctx.author.display_name)
+    log(f"HL Game started for {authorName.capitalize()} for {amount:,} aura", "HL_INFO")
+
+    try:
+        embed = discord.Embed(title="Higher or Lower", color=0x2b2d31)
+        embed.add_field(name="Current Dice", value=f"**{dice}**", inline=True)
+        embed.add_field(name="Current Pot", value=f"**{pot:,}** Aura", inline=True)
+        embed.set_footer(text=f"Round: {turn + 1}/5 | Next Multiplier: {MULT[turn]}x")
+        
+        view = higherLowerEmbed(ctx.author)
+        msg = await ctx.send(f"{ctx.author.mention} starting Higher/Lower!", embed=embed, view=view)
+
+        while playing:
+            await view.wait()
+
+            # Timeout Logic
+            if view.choice is None:
+                aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
+                aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
+                log(f"{authorName.capitalize()} HL Timed Out", "HIGHERLOWER")
+                await msg.edit(content=f"**Timed out!** You lost **{amount:,}** Aura.", embed=None, view=None)
+                playing = False
+                break
+
+            # Cash Out Logic
+            if view.choice == "quit":
+                profit = pot - amount
+                if profit != 0:
+                    aura_manager.update_aura(ctx.author.id, profit, ctx.author.display_name)
+                    aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
+                
+                log(f"{authorName.capitalize()} cashed out HL at {pot:,}", "HIGHERLOWER")
+                embed.title = "Cashed Out!"
+                embed.color = 0x6dab18
+                embed.description = f"You walked away with **{pot:,}** Aura."
+                await msg.edit(content=None, embed=embed, view=None)
+                playing = False
+                break
+
+            # Roll Logic
+            roll = random.randint(1, 100)
+            won = (view.choice == "higher" and roll > dice) or (view.choice == "lower" and roll < dice)
+
+            if roll == dice:
+                embed.set_footer(text=f"Rolled a {roll}: Tie! Try again.")
+                view = higherLowerEmbed(ctx.author)
+                await msg.edit(embed=embed, view=view)
+                continue
+
+            if won:
+                pot = ceil(pot * MULT[turn])
+                turn += 1
+                dice = roll
+                
+                if turn >= len(MULT): # Max Rounds Reached
+                    profit = pot - amount
+                    aura_manager.update_aura(ctx.author.id, profit, ctx.author.display_name)
+                    aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
+                    
+                    embed.title = "MAX WINS REACHED!"
+                    embed.color = 0x6dab18
+                    embed.set_field_at(0, name="Final Dice", value=f"**{roll}**")
+                    embed.set_field_at(1, name="Final Payout", value=f"**{pot:,}** Aura")
+                    embed.set_footer(text="Game Completed")
+                    await msg.edit(content=None, embed=embed, view=None)
+                    playing = False
+                else:
+                    embed.set_field_at(0, name="Current Dice", value=f"**{dice}**")
+                    embed.set_field_at(1, name="Current Pot", value=f"**{pot:,}** Aura")
+                    embed.set_footer(text=f"Round: {turn + 1}/5 | Next Multiplier: {MULT[turn]}x")
+                    view = higherLowerEmbed(ctx.author)
+                    await msg.edit(embed=embed, view=view)
+            else:
+                # Loss Logic
+                aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
+                aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
+                
+                log(f"{authorName.capitalize()} lost HL game.", "HIGHERLOWER")
+                embed.title = "YOU LOSE!"
+                embed.color = 0x992d22
+                embed.description = f"The roll was **{roll}**.\nYou lost **{amount:,}** Aura."
+                embed.clear_fields()
+                await msg.edit(content=None, embed=embed, view=None)
+                playing = False
+
+        # Final balance update
+        new_balance = aura_manager.aura_data.get(user_id, 0)
+        await ctx.send(f"{ctx.author.mention} > New Balance: `{new_balance:,} Aura`")
+
+    except Exception as e:
+        log(f"Higher/Lower Error: {e}", "ERROR")
+    finally:
+        aura_manager.unlockUser(ctx.author.id, name=ctx.author.display_name)
