@@ -246,13 +246,13 @@ async def higherlower(ctx, amount: str):
         except ValueError:
             return await ctx.send("Please enter a valid number, 'half', or 'all'.")
 
-    if amount < 10:
-        return await ctx.send("The minimum bet for Higher/Lower is **10** Aura.")
+    if amount < 5:
+        return await ctx.send("The minimum bet for Higher/Lower is **5** Aura.")
     if currentAura < amount:
         return await ctx.send(f"You Only Have **{currentAura:,}** Aura")
 
     # Game Setup
-    MULT = [1.25, 1.25, 1.30, 1.40, 1.50]
+    MULT = [1.15, 1.15, 1.25, 1.30, 1.40]
     dice = random.randint(1, 100)
     pot = amount
     turn = 0
@@ -265,7 +265,7 @@ async def higherlower(ctx, amount: str):
         embed = discord.Embed(title="Higher or Lower", color=0x2b2d31)
         embed.add_field(name="Current Dice", value=f"**{dice}**", inline=True)
         embed.add_field(name="Current Pot", value=f"**{pot:,}** Aura", inline=True)
-        embed.set_footer(text=f"Round: {turn + 1}/5 | Next Multiplier: {MULT[turn]}x")
+        embed.set_footer(text=f"Round: {turn + 1}/5 | Next Multiplier: {MULT[turn]}x | Buy-in: {amount}")
         
         view = higherLowerEmbed(ctx.author)
         msg = await ctx.send(f"{ctx.author.mention} starting Higher/Lower!", embed=embed, view=view)
@@ -284,24 +284,32 @@ async def higherlower(ctx, amount: str):
 
             # Cash Out Logic
             if view.choice == "quit":
-                profit = pot - amount
-                if profit != 0:
-                    aura_manager.update_aura(ctx.author.id, profit, ctx.author.display_name)
-                    aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
+                if turn >= 2:
+                    profit = pot - amount
+                    if profit != 0:
+                        aura_manager.update_aura(ctx.author.id, profit, ctx.author.display_name)
+                        aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
+                    
+                    log(f"{authorName.capitalize()} cashed out HL on round {turn} at {pot:,}", "HIGHERLOWER")
+                    embed.title = "Cashed Out!"
+                    embed.color = 0x6dab18
+                    embed.description = f"You walked away with **{pot:,}** Aura."
+                    await msg.edit(content=None, embed=embed, view=None)
+                    playing = False
+                    break
+                else:
+                    embed.description = f"Nah you can't quit until you make it to round 3."
+                    view = higherLowerEmbed(ctx.author)
+                    await msg.edit(embed=embed, view=view)
+                    continue
                 
-                log(f"{authorName.capitalize()} cashed out HL at {pot:,}", "HIGHERLOWER")
-                embed.title = "Cashed Out!"
-                embed.color = 0x6dab18
-                embed.description = f"You walked away with **{pot:,}** Aura."
-                await msg.edit(content=None, embed=embed, view=None)
-                playing = False
-                break
-
             # Roll Logic
             roll = random.randint(1, 100)
             won = (view.choice == "higher" and roll > dice) or (view.choice == "lower" and roll < dice)
+            embed.description = f"[{dice}] -> [{roll}]\n"
 
             if roll == dice:
+                embed.description = f"TIE! Go again."
                 embed.set_footer(text=f"Rolled a {roll}: Tie! Try again.")
                 view = higherLowerEmbed(ctx.author)
                 await msg.edit(embed=embed, view=view)
@@ -313,6 +321,7 @@ async def higherlower(ctx, amount: str):
                 dice = roll
                 
                 if turn >= len(MULT): # Max Rounds Reached
+                    log(f"{authorName.capitalize()} Reached round 5.", "HIGHERLOWER")
                     profit = pot - amount
                     aura_manager.update_aura(ctx.author.id, profit, ctx.author.display_name)
                     aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
@@ -321,15 +330,17 @@ async def higherlower(ctx, amount: str):
                     embed.color = 0x6dab18
                     embed.set_field_at(0, name="Final Dice", value=f"**{roll}**")
                     embed.set_field_at(1, name="Final Payout", value=f"**{pot:,}** Aura")
-                    embed.set_footer(text="Game Completed")
+                    embed.set_footer(text=f"Game Completed | Multiplier: {MULT[turn]}x | Buy-in: {amount}")
                     await msg.edit(content=None, embed=embed, view=None)
                     playing = False
                 else:
+                    embed.description += f"It was {view.choice}. Good job. Again! :smiling_imp:"
                     embed.set_field_at(0, name="Current Dice", value=f"**{dice}**")
                     embed.set_field_at(1, name="Current Pot", value=f"**{pot:,}** Aura")
-                    embed.set_footer(text=f"Round: {turn + 1}/5 | Next Multiplier: {MULT[turn]}x")
+                    embed.set_footer(text=f"Round: {turn + 1}/5 | Next Multiplier: {MULT[turn]}x | Buy-in: {amount}")
                     view = higherLowerEmbed(ctx.author)
                     await msg.edit(embed=embed, view=view)
+
             else:
                 # Loss Logic
                 aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
@@ -338,7 +349,8 @@ async def higherlower(ctx, amount: str):
                 log(f"{authorName.capitalize()} lost HL game.", "HIGHERLOWER")
                 embed.title = "YOU LOSE!"
                 embed.color = 0x992d22
-                embed.description = f"The roll was **{roll}**.\nYou lost **{amount:,}** Aura."
+                embed.description += f"Aww you lost **{amount:,}** Aura."
+                embed.set_footer(text=f"Round: {turn + 1}/5 | Pot lost: {pot} | Buy-in: {amount}")
                 embed.clear_fields()
                 await msg.edit(content=None, embed=embed, view=None)
                 playing = False
