@@ -24,7 +24,8 @@ def log(message: str, level: str = "INFO") -> None:
         "COINFLIP":    Fore.MAGENTA,    # Coinflip Messages
         "BLACKJACK":   Fore.MAGENTA,    # Blackjack Messages
         "BUTTON":      Fore.MAGENTA,    # Random Button Messages 
-        "HIGHERLOWER": Fore.MAGENTA     # Higher/Lower outcome messages
+        "HIGHERLOWER": Fore.MAGENTA,    # Higher/Lower outcome messages
+        "GOLD_BUTTON": Fore.YELLOW      # Golden Button Messages
 
     }    
     color = colors.get(level, "")

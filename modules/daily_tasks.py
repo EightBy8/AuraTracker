@@ -1,5 +1,5 @@
 import asyncio
-import datetime
+import datetime as dt  # Alias the whole module as 'dt'
 import os
 import random
 import json
@@ -8,7 +8,7 @@ from discord.ext import tasks
 from modules.bot_setup import bot
 from modules import aura_manager
 from modules.utils import log, seconds_until
-from modules.ui import leaderboardEmbed, randomButton
+from modules.ui import leaderboardEmbed, randomButton, goldenButtonEmbed
 
 CONFIG_FILE: str = os.path.join("data", "config.json")
 LINES_FILE: str = os.path.join("data", "dailyLines.json")
@@ -60,8 +60,8 @@ async def take_snapshot() -> None:
     log("Taking daily snapshot...", "INFO")
     history: dict =  aura_manager.load_history()
     aura_manager.ensure_today(history)
-    today: str = datetime.date.today().strftime("%Y-%m-%d")
-    timestamp: str = datetime.datetime.now().strftime("%H-%M-%S")
+    today: str = dt.date.today().strftime("%Y-%m-%d")
+    timestamp: str = dt.datetime.now().strftime("%H-%M-%S")
     history[today] = {"time": timestamp, "aura": aura_manager.aura_data.copy()}
     aura_manager.save_json(aura_manager.HISTORY_FILE, history)
     log("Daily snapshot saved", "SUCCESS")
@@ -197,10 +197,10 @@ async def spawn_aura_button() -> None:
     while not bot.is_closed():
         try:
             # Calculate next spawn time
-            next_spawn = datetime.datetime.now() + datetime.timedelta(minutes=25)
+            next_spawn = dt.datetime.now() + dt.timedelta(minutes=25)
             log(f"Next check scheduled at {next_spawn.strftime('%I:%M:%S %p')}", "BUTTON_INFO")
             
-            await asyncio.sleep(25 * 60) # 30 Minutes
+            await asyncio.sleep(25 * 60) # 25 Minutes
             if random.choice([True,False]):
                 channel = bot.get_channel(aura_manager.CHANNEL_ID)
                 if channel is None:
@@ -215,3 +215,54 @@ async def spawn_aura_button() -> None:
                 log("Button did not spawn this time.", "BUTTON_INFO")
         except Exception as e:
             log(f"Error during random aura spawn: {e}", "ERROR")
+
+async def spawn_golden_button() -> None:
+    await bot.wait_until_ready() # Wait for bot to login
+    
+    try:
+        while not bot.is_closed():
+            now = dt.datetime.now()
+
+            # Active Window 9AM to Midnight
+            if 9 <= now.hour < 24:
+                # Calculate seconds from now until 11:59:59 PM
+                end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=0)
+                seconds_left = (end_of_day - now).total_seconds()
+                
+                # Pick a random second in the day
+                wait_time = random.uniform(0, max(0, seconds_left))
+                scheduled_for = now + dt.timedelta(seconds=wait_time)
+                
+                log(f"Golden Button scheduled for {scheduled_for.strftime('%I:%M %p')}", "GOLD_BUTTON")
+                await asyncio.sleep(wait_time)
+                
+                # --- SPAWN LOGIC ---
+                channel = bot.get_channel(aura_manager.CHANNEL_ID)
+                if channel:
+                    view = goldenButtonEmbed()
+                    message = await channel.send("**A Golden Button has appeared!**", view=view)
+                    view.message = message
+                    log("Golden Button has been spawned.", "SUCCESS")
+                else:
+                    log(f"Channel {aura_manager.CHANNEL_ID} not found for Golden Button.", "ERROR")
+                
+                # Sleep untill 9am
+                tomorrow_9am = (now + dt.timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
+                sleep_until_reset = (tomorrow_9am - dt.datetime.now()).total_seconds()
+                
+                log(f"Button cycle finished. Resetting at 9 AM tomorrow.", "GOLD_BUTTON")
+                await asyncio.sleep(max(0, sleep_until_reset))
+
+            # If it's 12 AM - 8:59 AM wait until 9 AM
+            else:
+                target_9am = now.replace(hour=9, minute=0, second=0, microsecond=0)
+                if now.hour >= 9: # Safety for edge cases
+                    target_9am += dt.timedelta(days=1)
+                
+                wait_until_9 = (target_9am - now).total_seconds()
+                log(f"Outside spawn hours. Waiting until 9 AM...", "GOLD_BUTTON")
+                await asyncio.sleep(max(0, wait_until_9))
+
+    except Exception as e:
+        log(f"Error in spawn_golden_button: {e}", "ERROR")
+        await asyncio.sleep(60)

@@ -8,7 +8,7 @@ from modules.bot_setup import bot
 from modules.daily_tasks import save_config, load_config
 from modules import aura_manager
 from modules.utils import log, seconds_until
-from modules.ui import leaderboardEmbed, randomButton
+from modules.ui import leaderboardEmbed, randomButton, goldenButtonEmbed
 from discord import Embed
 
 # Path to auraCount.json
@@ -285,10 +285,13 @@ async def set_aura(ctx: commands.Context, member: discord.Member, amount: int) -
 @bot.command()
 async def reset_aura(ctx: commands.Context, member: discord.Member) -> None:
     if ctx.author.id not in aura_manager.OWNER_IDS:
-        return await ctx.send("You do not have permission to reset the aura.")
+        return await ctx.send("You do not have permission to reset the aura.") 
+    if member is None:
+        return await ctx.send("❌ You forgot to include the user! (Usage: `?reset_aura @user`)")
     aura_manager.set_aura(member.id, 0)
     await ctx.send(f"{member.mention}'s aura has been reset to 0!")
     log(f"{ctx.author} reset aura for {member}", "INFO")
+
 
 
 @bot.command()
@@ -442,3 +445,13 @@ async def spawnButton(ctx: commands.Context) -> None:
     view = randomButton()
     message = await ctx.send("Click this button for some aura! (or not)", view=view)
     view.message = message
+    log("Golden Button Spawned", "GOLD_BUTTON")
+
+@bot.command()
+async def spawnGoldenButton(ctx: commands.Context) -> None:
+    if ctx.author.id not in aura_manager.OWNER_IDS:
+        return await ctx.send("Only officers can spawn buttons..") 
+    view = goldenButtonEmbed()
+    message = await ctx.send("A GOLDEN AURA BUTTON HAS SPAWNED!", view=view)
+    view.message = message
+    log(f"{ctx.author.display_name} spawned a golden button through command","GOLD_BUTTON")

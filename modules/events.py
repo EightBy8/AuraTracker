@@ -94,11 +94,10 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         log(f"{ctx.author} entered a invalid command","WARNING")
         return await ctx.send("That command does not exist. Try `?help`")
-
     elif isinstance(error, commands.MissingRequiredArgument):
-        log(f"{ctx.author} forgot arugments in their command", "WARNING")
-        return await ctx.send("You forgot to include the amount!")
-
+        await ctx.send(f"You're missing a required part of that command: `{error.param.name}`")
+    elif isinstance(error, commands.MemberNotFound):
+        await ctx.send("User not found. Make sure you mention them!")
     else:
         log(f"UNHANDELED ERROR {error}", "ERROR")
 
