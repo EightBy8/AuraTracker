@@ -10,6 +10,8 @@ from modules.ui import coinFlipEmbed, blackJackEmbed
 from modules.ui import higherLowerEmbed
 from modules.utils import log
 
+
+
 # COINFLIP GAME
 
 @bot.command(aliases=['cf'])
@@ -47,9 +49,12 @@ async def coinflip(ctx, amount: str):
     await view.wait()
 
     if view.choice is None:
-        aura_manager.unlockUser(ctx.author.id, name=ctx.author.display_name)
-        return await msg.edit(content="Timed out! No aura lost", view=None)
+        aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
+        aura_manager.update_aura(bot.user.id, +amount, "The House")
 
+        await msg.edit(content=f"{ctx.author.mention} Timed out! You lost. The House takes `{amount}' aura", view=None)
+        aura_manager.unlockUser(ctx.author.id, name=ctx.author.display_name)
+        return 
 
     coinflipInt = random.randint(1,100)
     if coinflipInt % 2 == 0:
@@ -69,9 +74,16 @@ async def coinflip(ctx, amount: str):
             color = 0x6dab18
         else:
             aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
+            aura_manager.update_aura(bot.user.id, +amount, "The House")
+
             currentAura -= amount
+            botTotal = aura_manager.aura_data.get(str(bot.user.id))
+
+
             outcome_text = f"**YOU LOSE!** It was **{result.capitalize()}**.\n **━{amount}** AURA."
             await ctx.send(f"{ctx.author.mention} > New Balance: `{currentAura:,} Aura`")
+            await ctx.send(f"`{amount:,}` aura has been added to the bank. ")
+
             log(f"{ctx.author.name.capitalize()} Lost {amount} aura.","COINFLIP")
             color = 0x992d22
 
@@ -175,6 +187,8 @@ async def blackjack(ctx, amount: str):
             else:
                 # --- TIMEOUT LOSS LOGIC ---
                 aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
+                aura_manager.update_aura(bot.user.id, +amount, "The House" )
+
                 aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
                 
                 new_balance = aura_manager.aura_data.get(user_id, 0)
@@ -182,7 +196,9 @@ async def blackjack(ctx, amount: str):
                 log(f"{authorName.capitalize()} timed out and lost {amount} aura", "BLACKJACK")
                 
                 await msg.edit(content=f"**Timed out!** You lost **{amount:,}** Aura.", embed=None, view=None)
-                return await ctx.send(f"{ctx.author.mention} > New Balance: `{new_balance:,} Aura`")
+                await ctx.send(f"{ctx.author.mention} > New Balance: `{new_balance:,} Aura`")
+                await ctx.send(f"`{amount:,}` aura has been added to the bank. ")
+                return
 
         # DEALER TURN
         playerFinal = calculateScore(playerHand)
@@ -192,25 +208,31 @@ async def blackjack(ctx, amount: str):
         
         dealerFinal = calculateScore(dealerHand)
         
-        # DETERMINE WINNER
+# DETERMINE WINNER
+        bot_id_str = str(bot.user.id)
         if playerFinal > 21:
             result, change, color = "BUST", -amount, 0x992d22
+            # House collects on player bust
+            aura_manager.update_aura(bot.user.id, amount, "The House")
         elif dealerFinal > 21:
             result, change, color = "DEALER BUSTED - YOU WIN!", amount, 0x6dab18
         elif playerFinal > dealerFinal:
             result, change, color = "YOU WIN!", amount, 0x6dab18
         elif playerFinal < dealerFinal:
             result, change, color = "DEALER WINS", -amount, 0x992d22
+            # House collects on dealer win
+            aura_manager.update_aura(bot.user.id, amount, "The House")
         else:
             result, change, color = "PUSH (TIE)", 0, 0x7289da
 
-        # UPDATE AURA
+        # UPDATE PLAYER AURA
         if change != 0:
             aura_manager.update_aura(ctx.author.id, change, ctx.author.display_name)
             aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
 
-        # Define new_balance HERE for the normal end message
+        # Get  balances for the final message
         new_balance = aura_manager.aura_data.get(user_id, 0)
+        bot_balance = aura_manager.aura_data.get(bot_id_str, 0)
 
         # FINAL UI UPDATE
         finalEmbed = discord.Embed(title=f"Blackjack - {result}", color=color)
@@ -218,8 +240,13 @@ async def blackjack(ctx, amount: str):
         finalEmbed.add_field(name="Dealer Hand", value=f"{dealerHand}\nScore: {dealerFinal}")
         
         await msg.edit(embed=finalEmbed, view=None)
-        await ctx.send(f"{ctx.author.mention} > New Balance: `{new_balance:,} Aura`")
 
+        status_msg = f"{ctx.author.mention} > New Balance: `{new_balance:,} Aura`"
+        
+        if change < 0:
+            status_msg += f"\n`{amount:,}` aura added to the bank."
+            
+        await ctx.send(status_msg)
     except Exception as e:
         log(f"Blackjack Error: {e}", "ERROR")
     finally:
@@ -276,9 +303,14 @@ async def higherlower(ctx, amount: str):
             # Timeout Logic
             if view.choice is None:
                 aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
+                aura_manager.update_aura(bot.user.id, +amount, "The House") 
+
                 aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
                 log(f"{authorName.capitalize()} HL Timed Out", "HIGHERLOWER")
                 await msg.edit(content=f"**Timed out!** You lost **{amount:,}** Aura.", embed=None, view=None)
+                await ctx.send(f"`{amount:,}` aura has been added to the bank. ")
+
+                await ctx.send(f"")
                 playing = False
                 break
 
@@ -344,6 +376,8 @@ async def higherlower(ctx, amount: str):
             else:
                 # Loss Logic
                 aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
+                aura_manager.update_aura(bot.user.id, +amount, "The House")
+
                 aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
                 
                 log(f"{authorName.capitalize()} lost HL game.", "HIGHERLOWER")
@@ -358,6 +392,8 @@ async def higherlower(ctx, amount: str):
         # Final balance update
         new_balance = aura_manager.aura_data.get(user_id, 0)
         await ctx.send(f"{ctx.author.mention} > New Balance: `{new_balance:,} Aura`")
+        await ctx.send(f"`{amount:,}` aura has been added to the bank. ")
+
 
     except Exception as e:
         log(f"Higher/Lower Error: {e}", "ERROR")

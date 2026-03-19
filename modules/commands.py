@@ -156,7 +156,7 @@ async def test_daily(ctx):
 async def aura(ctx: commands.Context, member: discord.Member | None = None) -> None:
     member = member or ctx.author
     user_aura = aura_manager.aura_data.get(str(member.id), 0)
-    await ctx.send(f"{member.mention}'s aura: {user_aura:,}")
+    await ctx.send(f"{member.mention}'s aura: `{user_aura:,}`")
     log(f"Aura requested for {member} ({member.id})", "INFO")
 
 
@@ -165,24 +165,30 @@ async def lb(ctx, page: int = 1):
 
     # Check if user is in a game
     if aura_manager.isBusy(ctx.author.id):
-        return await ctx.send(f"Finish your currnet game first!")
+        return await ctx.send(f"Finish your current game first!")
+    
+    # 1. Get the data and FILTER OUT THE BOT
+    # Use .copy() so we don't accidentally delete the bot from the actual file
+    leaderboard_data = aura_manager.aura_data.copy()
+    bot_id_str = str(bot.user.id)
+    
+    if bot_id_str in leaderboard_data:
+        del leaderboard_data[bot_id_str] 
 
-    # Define 'data' properly
-    data = aura_manager.aura_data
-    if not data:
+    if not leaderboard_data:
         return await ctx.send("No Data for Leaderboard Yet...")
 
-    # Sort the data
-    sorted_aura = sorted(data.items(), key=lambda x: x[1], reverse=True)
+    # 2. Sort the filtered data (Notice we use 'leaderboard_data' here)
+    sorted_aura = sorted(leaderboard_data.items(), key=lambda x: x[1], reverse=True)
 
-    # Format Data
+    # 3. Format Data
     formatted_data = []
     for rank, (uid, score) in enumerate(sorted_aura, start=1):
         formattedScore = f"{score:,}"
         prefix = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, str(rank))
         formatted_data.append(f"{prefix}> <@{uid}> \n\u2003Aura: {formattedScore}\n")
 
-    # Initialize the View
+    # 4. Initialize the View
     view = leaderboardEmbed(
         data=formatted_data, 
         title="Aura Leaderboard", 
@@ -190,13 +196,20 @@ async def lb(ctx, page: int = 1):
         color=0x6dab18
     )
 
-    # Set the starting page based on user input
+    # 5. Set the starting page based on user input
     target_page = page - 1
     if 0 <= target_page <= view.end:
         view.currentPage = target_page
         await ctx.send(embed=view.createEmbed(), view=view)
     else:
+        # Give a helpful message if the page number is too high
         await ctx.send(f"Invalid page! Choose between 1 and {view.end + 1}.")
+
+@bot.command()
+async def bank(ctx: commands.Context) -> None:
+    botAura = aura_manager.aura_data.get(str(bot.user.id), 0)
+    await ctx.send(f"{ctx.author.mention} > There is currently `{botAura:,}` aura in the bank ")
+
 
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -405,6 +418,25 @@ async def dailylb(ctx: commands.Context) -> None:
     wait = seconds_until(9, 30)
     hours, minutes, seconds = int(wait // 3600), int((wait % 3600) // 60), int(wait % 60)
     await ctx.send(f"Time Until Daily Leaderboard: {hours}h {minutes}m {seconds}s")
+@bot.command()
+async def spawnButton(ctx: commands.Context) -> None:
+    if ctx.author.id not in aura_manager.OWNER_IDS:
+        return await ctx.send("Only officers can spawn buttons..")
+    view = randomButton()
+    message = await ctx.send("Click this button for some aura! (or not)", view=view)
+    view.message = message
+    log("Golden Button Spawned", "GOLD_BUTTON")
+
+@bot.command()
+async def spawnGoldenButton(ctx: commands.Context) -> None:
+    if ctx.author.id not in aura_manager.OWNER_IDS:
+        return await ctx.send("Only officers can spawn buttons..") 
+    view = goldenButtonEmbed()
+    message = await ctx.send("A GOLDEN AURA BUTTON HAS SPAWNED!", view=view)
+    view.message = message
+    log(f"{ctx.author.display_name} spawned a golden button through command","GOLD_BUTTON")
+
+
 
 
 @bot.command()
@@ -438,20 +470,3 @@ async def help(ctx: commands.Context) -> None:
     )
 
 
-@bot.command()
-async def spawnButton(ctx: commands.Context) -> None:
-    if ctx.author.id not in aura_manager.OWNER_IDS:
-        return await ctx.send("Only officers can spawn buttons..")
-    view = randomButton()
-    message = await ctx.send("Click this button for some aura! (or not)", view=view)
-    view.message = message
-    log("Golden Button Spawned", "GOLD_BUTTON")
-
-@bot.command()
-async def spawnGoldenButton(ctx: commands.Context) -> None:
-    if ctx.author.id not in aura_manager.OWNER_IDS:
-        return await ctx.send("Only officers can spawn buttons..") 
-    view = goldenButtonEmbed()
-    message = await ctx.send("A GOLDEN AURA BUTTON HAS SPAWNED!", view=view)
-    view.message = message
-    log(f"{ctx.author.display_name} spawned a golden button through command","GOLD_BUTTON")
