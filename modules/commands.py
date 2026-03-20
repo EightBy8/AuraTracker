@@ -209,6 +209,7 @@ async def lb(ctx, page: int = 1):
 async def bank(ctx: commands.Context) -> None:
     botAura = aura_manager.aura_data.get(str(bot.user.id), 0)
     await ctx.send(f"{ctx.author.mention} > There is currently `{botAura:,}` aura in the bank ")
+    
 
 
 
@@ -435,8 +436,6 @@ async def spawnGoldenButton(ctx: commands.Context) -> None:
     message = await ctx.send("A GOLDEN AURA BUTTON HAS SPAWNED!", view=view)
     view.message = message
     log(f"{ctx.author.display_name} spawned a golden button through command","GOLD_BUTTON")
-
-
 
 
 @bot.command()

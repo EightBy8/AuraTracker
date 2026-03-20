@@ -184,8 +184,6 @@ class goldenButtonEmbed(discord.ui.View):
             return
         self.clicked = True
 
-
-
         #Update aura
         amount = 25
         update_aura(interaction.user.id, amount, user_obj=interaction.user)
@@ -207,6 +205,15 @@ class goldenButtonEmbed(discord.ui.View):
         self.stop()
 
 
+    async def on_timeout(self):
+        if self.message:
+            try:
+                await self.message.delete()
+                log("Golden Button timed out and was removed.", "GOLD_BUTTON")
+            except discord.NotFound:
+                pass
+            except Exception as e:
+                log(f"Error deleting timed out button: {e}", "ERROR")
 
 class higherLowerEmbed(discord.ui.View):
     def __init__(self, user):
@@ -236,4 +243,33 @@ class higherLowerEmbed(discord.ui.View):
             return await interaction.response.send_message("This isn't your game!", ephemeral=True)
         self.choice = "quit"
         await interaction.response.defer()
-        self.stop() 
+        self.stop()
+
+
+class rockPaperScissorsEmbed(discord.ui.View):
+    def __init__(self, author, amount):
+        super().__init__(timeout=60)
+        self.author = author
+        self.amount = amount
+        self.choice = None
+
+    async def process_selection(self, interaction: discord.Interaction, choice: str):
+        if interaction.user.id != self.author.id:
+            return await interaction.response.send_message("This is not your game!", ephemeral=True)
+        
+        self.choice = choice 
+        await interaction.response.edit_message(content=f"what bro", view=None) 
+        self.stop()
+
+    @discord.ui.button(label="Rock", emoji="🪨", style=discord.ButtonStyle.blurple)
+    async def rock(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_selection(interaction, "rock")
+    
+    @discord.ui.button(label="Paper", emoji="📄", style=discord.ButtonStyle.blurple)
+    async def paper(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_selection(interaction, "paper")
+
+    @discord.ui.button(label="Scissors", emoji="✂️", style=discord.ButtonStyle.blurple)
+    async def scissors(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_selection(interaction, "scissors")
+

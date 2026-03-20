@@ -6,8 +6,7 @@ from modules import aura_manager
 from modules.bot_setup import bot
 from modules.aura_manager import unlockUser, lockUser, isBusy
 from modules.daily_tasks import save_config
-from modules.ui import coinFlipEmbed, blackJackEmbed
-from modules.ui import higherLowerEmbed
+from modules.ui import coinFlipEmbed, blackJackEmbed, higherLowerEmbed, rockPaperScissorsEmbed
 from modules.utils import log
 
 
@@ -82,7 +81,7 @@ async def coinflip(ctx, amount: str):
 
             outcome_text = f"**YOU LOSE!** It was **{result.capitalize()}**.\n **━{amount}** AURA."
             await ctx.send(f"{ctx.author.mention} > New Balance: `{currentAura:,} Aura`")
-            await ctx.send(f"`{amount:,}` aura has been added to the bank. ")
+            # await ctx.send(f"`{amount:,}` aura has been added to the bank. ")
 
             log(f"{ctx.author.name.capitalize()} Lost {amount} aura.","COINFLIP")
             color = 0x992d22
@@ -149,7 +148,7 @@ async def blackjack(ctx, amount: str):
     if amount <= 0:
         return await ctx.send("Please Enter a Valid Amount")
     if currentAura < amount:
-        return await ctx.send(f"You Only Have **{currentAura:,}** Aura") # Added commas
+        return await ctx.send(f"You Only Have **{currentAura:,}** Aura") 
 
     aura_manager.lockUser(ctx.author.id, name=ctx.author.display_name)
     
@@ -197,7 +196,7 @@ async def blackjack(ctx, amount: str):
                 
                 await msg.edit(content=f"**Timed out!** You lost **{amount:,}** Aura.", embed=None, view=None)
                 await ctx.send(f"{ctx.author.mention} > New Balance: `{new_balance:,} Aura`")
-                await ctx.send(f"`{amount:,}` aura has been added to the bank. ")
+                # await ctx.send(f"`{amount:,}` aura has been added to the bank. ")
                 return
 
         # DEALER TURN
@@ -308,7 +307,7 @@ async def higherlower(ctx, amount: str):
                 aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
                 log(f"{authorName.capitalize()} HL Timed Out", "HIGHERLOWER")
                 await msg.edit(content=f"**Timed out!** You lost **{amount:,}** Aura.", embed=None, view=None)
-                await ctx.send(f"`{amount:,}` aura has been added to the bank. ")
+                # await ctx.send(f"`{amount:,}` aura has been added to the bank. ")
 
                 await ctx.send(f"")
                 playing = False
@@ -392,10 +391,101 @@ async def higherlower(ctx, amount: str):
         # Final balance update
         new_balance = aura_manager.aura_data.get(user_id, 0)
         await ctx.send(f"{ctx.author.mention} > New Balance: `{new_balance:,} Aura`")
-        await ctx.send(f"`{amount:,}` aura has been added to the bank. ")
+        # await ctx.send(f"`{amount:,}` aura has been added to the bank. ")
 
 
     except Exception as e:
         log(f"Higher/Lower Error: {e}", "ERROR")
     finally:
         aura_manager.unlockUser(ctx.author.id, name=ctx.author.display_name)
+
+@bot.command(aliases=['rps'])
+async def rockPaperScissors(ctx, amount: str):
+    userID =  str(ctx.author.id)
+
+    if aura_manager.isBusy(ctx.author.id):
+        return await ctx.send("Finish your current game first!")
+    
+    currentAura = aura_manager.aura_data.get(userID, 0)
+
+    # Bet Amount Logic
+    if amount.lower() == "all":
+        amount = currentAura
+    elif amount.lower() == "half":
+        amount = currentAura // 2
+    else:
+        try:
+            amount = int(amount)
+        except ValueError:
+            return await ctx.send("Please enter a valid number, 'half', or 'all'.")
+        
+    if amount <= 0:
+        return await ctx.send("You must enter a valid amount!")
+    if currentAura < amount:
+        return await ctx.send(f"You Only Have **{currentAura:,}** Aura")
+    
+    #Lock user
+    aura_manager.lockUser(ctx.author.id, name = ctx.author.display_name)
+    log(f"RPS Game started for {ctx.author.display_name}", "RPS")
+    view = rockPaperScissorsEmbed(ctx.author, amount)
+    msg = await ctx.send(f"**{ctx.author.mention}** chose your move for **{amount:,}** Aura!", view=view)
+    
+    await view.wait()
+
+    try:
+        if view.choice is None:
+            aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
+            aura_manager.update_aura(bot.user.id, +amount, "The House")
+            aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
+            log(f"{ctx.author.display_name} timed out. Lost {amount} aura", "RPS")
+            return await msg.edit(content=f"{ctx.author.mention} **Timed out!** You lost `-{amount:,}` Aura.", view=None)
+        botChoice = random.choice(["rock", "paper", "scissors"])
+        userChoice = view.choice
+
+
+        # Determine Winner
+        # 0 = Tie, 1 = Win, 2 = Lose
+        winMap = {"rock": "scissors", "paper": "rock", "scissors": "paper"}
+
+        if userChoice == botChoice:
+            resultText = (f"It was a **TIE**. We both chose {userChoice}")
+            log(f"Game tied for {ctx.author.display_name}. Returning {amount} aura", "RPS")
+            change = 0
+            color = 0x7289da
+            
+    
+        elif winMap[userChoice] == botChoice:
+            resultText = (f"You **WIN**. {userChoice} beats {botChoice}")
+            log(f"{ctx.author.display_name} Won {amount} aura", "RPS")
+            change = amount
+            color = 0x6dab18
+        
+        else:
+            resultText = (f"You **LOSE**. {botChoice} beats {userChoice}")
+            log(f"{ctx.author.display_name} Lost {amount} aura", "RPS")
+            change = -amount
+            color = 0x992d22
+            aura_manager.update_aura(bot.user.id, +amount, "The House")
+
+        if change != 0:
+            aura_manager.update_aura(ctx.author.id, change, ctx.author.display_name)
+
+        aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
+
+
+        # New Balance
+        newBal = aura_manager.aura_data.get(userID, 0)
+        botBal = aura_manager.aura_data.get(str(bot.user.id), 0)
+
+        embed = discord.Embed(description=resultText, color=color)
+        await msg.edit(content=None, embed=embed, view=None)
+
+        status = f"{ctx.author.mention} > New Balance: `{newBal}`"
+
+        if change < 0:
+            status += f"| Bank: `{botBal}`"
+        await ctx.send(status)
+
+    finally:
+        aura_manager.unlockUser(ctx.author.id, name=ctx.author.display_name)
+
