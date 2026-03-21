@@ -436,9 +436,18 @@ async def help(ctx: commands.Context) -> None:
 
 
 @bot.command()
-async def spawnButton(ctx: commands.Context) -> None:
+async def spawnButton(ctx: commands.Context, amount: str = "1") -> None:
     if ctx.author.id not in aura_manager.OWNER_IDS:
         return await ctx.send("Only officers can spawn buttons..")
-    view = randomButton()
-    message = await ctx.send("Click this button for some aura! (or not)", view=view)
-    view.message = message
+
+    try:
+        num_buttons = int(amount)
+
+        for x in range(min(num_buttons, 10)):
+            view = randomButton()
+            message = await ctx.send("Click this button for some aura! (or not)", view=view)
+            view.message = message
+    except ValueError:
+        view = randomButton()
+        message = await ctx.send("Click this button for some aura! (or not)", view=view)
+        view.message = message

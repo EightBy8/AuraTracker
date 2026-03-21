@@ -253,6 +253,7 @@ async def higherlower(ctx, amount: str):
 
     # Game Setup
     MULT = [1.15, 1.15, 1.25, 1.30, 1.40]
+    PAYOUTS = [1.15, 1.32, 1.65, 2.15, 3.01]
     dice = random.randint(1, 100)
     pot = amount
     turn = 0
@@ -265,7 +266,7 @@ async def higherlower(ctx, amount: str):
         embed = discord.Embed(title="Higher or Lower", color=0x2b2d31)
         embed.add_field(name="Current Dice", value=f"**{dice}**", inline=True)
         embed.add_field(name="Current Pot", value=f"**{pot:,}** Aura", inline=True)
-        embed.set_footer(text=f"Round: {turn + 1}/5 | Next Multiplier: {MULT[turn]}x | Buy-in: {amount}")
+        embed.set_footer(text=f"Round: {turn + 1}/5 | Next Multiplier: {PAYOUTS[turn]}x | Buy-in: {amount}")
         
         view = higherLowerEmbed(ctx.author)
         msg = await ctx.send(f"{ctx.author.mention} starting Higher/Lower!", embed=embed, view=view)
@@ -330,14 +331,14 @@ async def higherlower(ctx, amount: str):
                     embed.color = 0x6dab18
                     embed.set_field_at(0, name="Final Dice", value=f"**{roll}**")
                     embed.set_field_at(1, name="Final Payout", value=f"**{pot:,}** Aura")
-                    embed.set_footer(text=f"Game Completed | Multiplier: {MULT[turn]}x | Buy-in: {amount}")
+                    embed.set_footer(text=f"Game Completed | Multiplier: {PAYOUTS[-1]}x | Buy-in: {amount}")
                     await msg.edit(content=None, embed=embed, view=None)
                     playing = False
                 else:
                     embed.description += f"It was {view.choice}. Good job. Again! :smiling_imp:"
                     embed.set_field_at(0, name="Current Dice", value=f"**{dice}**")
                     embed.set_field_at(1, name="Current Pot", value=f"**{pot:,}** Aura")
-                    embed.set_footer(text=f"Round: {turn + 1}/5 | Next Multiplier: {MULT[turn]}x | Buy-in: {amount}")
+                    embed.set_footer(text=f"Round: {turn + 1}/5 | Next Multiplier: {PAYOUTS[turn]}x | Buy-in: {amount}")
                     view = higherLowerEmbed(ctx.author)
                     await msg.edit(embed=embed, view=view)
 
