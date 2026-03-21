@@ -116,8 +116,8 @@ class randomButton(discord.ui.View):
         self.clicked = False
 
         # Load gain/loss messages
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # auraTracker/
-        filePath = os.path.join(BASE_DIR,"..","data","randomMessages.json") 
+        baseDir = os.path.dirname(os.path.abspath(__file__)) # auraTracker/
+        filePath = os.path.join(baseDir,"..","data","randomMessages.json") 
         with open(filePath, "r") as f:
             self.messages = json.load(f)
 
@@ -129,9 +129,9 @@ class randomButton(discord.ui.View):
 
         # Randomly decide gain or loss
         roll = random.randint(1,100)
-        win_con = 50
+        winCon = 50
 
-        if roll <= win_con:
+        if roll <= winCon:
             auraChange = random.randint(1,20)
             log(f"{interaction.user.name.capitalize()} gain {auraChange}", "BUTTON")
         else:
@@ -140,7 +140,7 @@ class randomButton(discord.ui.View):
 
         # Pick a message template once
         msg_template = f"-# Rolled a {roll}\n"
-        msg_template += random.choice(self.messages["gain"]) if roll <= win_con else random.choice(self.messages["loss"])
+        msg_template += random.choice(self.messages["gain"]) if roll <= winCon else random.choice(self.messages["loss"])
 
         # Format message with mention and aura change
         msg = msg_template.format(mention=interaction.user.mention, amount=auraChange)
@@ -172,6 +172,49 @@ class randomButton(discord.ui.View):
             except discord.NotFound:
                 pass
 
+class goldenButtonEmbed(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=30)
+        self.clicked = False
+
+    @discord.ui.button(label="✨Click Me✨", style=discord.ButtonStyle.grey)
+    async def clickedButton(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        if self.clicked:
+            return
+        self.clicked = True
+
+        #Update aura
+        amount = 25
+        update_aura(interaction.user.id, amount, user_obj=interaction.user)
+
+        # Get new balance
+        new_balance = aura_data.get(str(interaction.user.id), 0)
+
+
+        # Edit original message
+        if hasattr(self, 'message') and self.message:
+            try:
+                await self.message.delete()
+            except discord.NotFound:
+                pass
+        await interaction.channel.send(f"{interaction.user.mention} Pressed the golden button and gained `+{amount}` Aura!\n> New Balance: `{new_balance:,} Aura`")
+        log(f"{interaction.user.display_name} Pressed the gold button", "GOLD_BUTTON")
+
+        # Stop the view to clean up
+        self.stop()
+
+
+    async def on_timeout(self):
+        if self.message:
+            try:
+                await self.message.delete()
+                log("Golden Button timed out and was removed.", "GOLD_BUTTON")
+            except discord.NotFound:
+                pass
+            except Exception as e:
+                log(f"Error deleting timed out button: {e}", "ERROR")
+
 class higherLowerEmbed(discord.ui.View):
     def __init__(self, user):
         super().__init__(timeout=60)
@@ -200,4 +243,33 @@ class higherLowerEmbed(discord.ui.View):
             return await interaction.response.send_message("This isn't your game!", ephemeral=True)
         self.choice = "quit"
         await interaction.response.defer()
-        self.stop() 
+        self.stop()
+
+
+class rockPaperScissorsEmbed(discord.ui.View):
+    def __init__(self, author, amount):
+        super().__init__(timeout=60)
+        self.author = author
+        self.amount = amount
+        self.choice = None
+
+    async def process_selection(self, interaction: discord.Interaction, choice: str):
+        if interaction.user.id != self.author.id:
+            return await interaction.response.send_message("This is not your game!", ephemeral=True)
+        
+        self.choice = choice 
+        await interaction.response.edit_message(content=f"what bro", view=None) 
+        self.stop()
+
+    @discord.ui.button(label="Rock", emoji="🪨", style=discord.ButtonStyle.blurple)
+    async def rock(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_selection(interaction, "rock")
+    
+    @discord.ui.button(label="Paper", emoji="📄", style=discord.ButtonStyle.blurple)
+    async def paper(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_selection(interaction, "paper")
+
+    @discord.ui.button(label="Scissors", emoji="✂️", style=discord.ButtonStyle.blurple)
+    async def scissors(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_selection(interaction, "scissors")
+
