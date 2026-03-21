@@ -419,55 +419,6 @@ async def dailylb(ctx: commands.Context) -> None:
     wait = seconds_until(9, 30)
     hours, minutes, seconds = int(wait // 3600), int((wait % 3600) // 60), int(wait % 60)
     await ctx.send(f"Time Until Daily Leaderboard: {hours}h {minutes}m {seconds}s")
-@bot.command()
-async def spawnButton(ctx: commands.Context) -> None:
-    if ctx.author.id not in aura_manager.OWNER_IDS:
-        return await ctx.send("Only officers can spawn buttons..")
-    view = randomButton()
-    message = await ctx.send("Click this button for some aura! (or not)", view=view)
-    view.message = message
-    log("Golden Button Spawned", "GOLD_BUTTON")
-
-@bot.command()
-async def spawnGoldenButton(ctx: commands.Context) -> None:
-    if ctx.author.id not in aura_manager.OWNER_IDS:
-        return await ctx.send("Only officers can spawn buttons..") 
-    view = goldenButtonEmbed()
-    message = await ctx.send("A GOLDEN AURA BUTTON HAS SPAWNED!", view=view)
-    view.message = message
-    log(f"{ctx.author.display_name} spawned a golden button through command","GOLD_BUTTON")
-
-
-@bot.command()
-async def help(ctx: commands.Context) -> None:
-    await ctx.send(
-"""
-
-## Aura Bot Commands
-
-### __*User:*__
-- ?aura [Member] - check aura
-- ?give_aura [Memeber] [Amount | "all", "half"] - Send aura to another user
-- ?lb - shows leaderboard
-- ?slb - shows who gives the most positive aura
-- ?dslb - shows who gives the most negative aura
-- ?dailylb - shows countdown for next daily leaderboard post
-- ?coinflip, ?cf - [Amount | "all", "half"] - play a coinflip game
-- ?blackjack, ?bj - [Amount | "all", "half"] - play a blackjack game
-- ?higherlower, ?hl - [Amount | "all", "half"] - play a higher/lower game (Min 10)
-
-
-
-### __*Aura Officer Commands :*__
-- `?set_aura [member] [amount] - set aura`
-- `?reset_aura [member] - reset aura`
-- `?modify_aura [member] [amount] - modify aura`
-- `?set_channel - sets the channel for daily leaderboards to be sent`
-- `?add_officer - adds user to aura officer list`
-
-"""
-    )
-
 
 @bot.command()
 async def spawnButton(ctx: commands.Context, amount: str = "1") -> None:
@@ -485,3 +436,45 @@ async def spawnButton(ctx: commands.Context, amount: str = "1") -> None:
         view = randomButton()
         message = await ctx.send("Click this button for some aura! (or not)", view=view)
         view.message = message
+    log(f"{ctx.author.display_name} spawned a regular button through command","BUTTON")
+
+@bot.command()
+async def spawnGoldenButton(ctx: commands.Context) -> None:
+    if ctx.author.id not in aura_manager.OWNER_IDS:
+        return await ctx.send("Only officers can spawn buttons..") 
+    view = goldenButtonEmbed()
+    message = await ctx.send("A GOLDEN AURA BUTTON HAS SPAWNED!", view=view)
+    view.message = message
+    log(f"{ctx.author.display_name} spawned a golden button through command","GOLD_BUTTON")
+
+
+@bot.command()
+async def help(ctx: commands.Context) -> None:
+    await ctx.send(
+        """
+
+        ## Aura Bot Commands
+
+        ### __*User:*__
+        - ?aura [Member] - check aura
+        - ?give_aura [Memeber] [Amount | "all", "half"] - Send aura to another user
+        - ?lb - shows leaderboard
+        - ?slb - shows who gives the most positive aura
+        - ?dslb - shows who gives the most negative aura
+        - ?dailylb - shows countdown for next daily leaderboard post
+        - ?coinflip, ?cf - [Amount | "all", "half"] - play a coinflip game
+        - ?blackjack, ?bj - [Amount | "all", "half"] - play a blackjack game
+        - ?higherlower, ?hl - [Amount | "all", "half"] - play a higher/lower game (Min 10)
+
+
+
+        ### __*Aura Officer Commands :*__
+        - `?set_aura [member] [amount] - set aura`
+        - `?reset_aura [member] - reset aura`
+        - `?modify_aura [member] [amount] - modify aura`
+        - `?set_channel - sets the channel for daily leaderboards to be sent`
+        - `?add_officer - adds user to aura officer list`
+
+        """
+    )
+
