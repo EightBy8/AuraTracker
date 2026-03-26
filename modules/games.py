@@ -6,9 +6,9 @@ from modules import aura_manager
 from modules.bot_setup import bot
 from modules.aura_manager import unlockUser, lockUser, isBusy
 from modules.daily_tasks import save_config
-from modules.ui import coinFlipEmbed, blackJackEmbed, higherLowerEmbed, rockPaperScissorsEmbed
+from modules.ui import coinFlipEmbed, blackJackEmbed, higherLowerEmbed, rockPaperScissorsEmbed, rpsChallengeEmbed, rpsPvPEmbed
 from modules.utils import log
-
+from typing import Optional
 
 
 # COINFLIP GAME
@@ -51,7 +51,7 @@ async def coinflip(ctx, amount: str):
         aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
         aura_manager.update_aura(bot.user.id, +amount, "The House")
 
-        await msg.edit(content=f"{ctx.author.mention} Timed out! You lost. The House takes `{amount}' aura", view=None)
+        await msg.edit(content=f"{ctx.author.mention} Timed out! You lost. The House takes `{amount:,}' aura", view=None)
         aura_manager.unlockUser(ctx.author.id, name=ctx.author.display_name)
         return 
 
@@ -67,7 +67,7 @@ async def coinflip(ctx, amount: str):
         if won:
             aura_manager.update_aura(ctx.author.id, amount, ctx.author.display_name)
             currentAura += amount
-            outcome_text = f"**YOU WIN!** It was **{result.capitalize()}**.\n**✚{amount}** AURA!"
+            outcome_text = f"**YOU WIN!** It was **{result.capitalize()}**.\n**✚{amount:,}** AURA!"
             log(f"{ctx.author.name.capitalize()} Won {amount:,} aura.","COINFLIP")
             await ctx.send(f"{ctx.author.mention} > New Balance: `{currentAura:,} Aura`")
             color = 0x6dab18
@@ -79,11 +79,11 @@ async def coinflip(ctx, amount: str):
             botTotal = aura_manager.aura_data.get(str(bot.user.id))
 
 
-            outcome_text = f"**YOU LOSE!** It was **{result.capitalize()}**.\n **━{amount}** AURA."
+            outcome_text = f"**YOU LOSE!** It was **{result.capitalize()}**.\n **━{amount:,}** AURA."
             await ctx.send(f"{ctx.author.mention} > New Balance: `{currentAura:,} Aura`")
             # await ctx.send(f"`{amount:,}` aura has been added to the bank. ")
 
-            log(f"{ctx.author.name.capitalize()} Lost {amount} aura.","COINFLIP")
+            log(f"{ctx.author.name.capitalize()} Lost {amount:,} aura.","COINFLIP")
             color = 0x992d22
 
         aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
@@ -161,7 +161,7 @@ async def blackjack(ctx, amount: str):
         embed.add_field(name="Dealer's Hand", value=f"['{dealerHand[0]}', '❓']")
         
         view = blackJackEmbed(ctx.author, amount) 
-        msg = await ctx.send(f"{ctx.author.mention}'s Blackjack game for **{amount}** aura", embed=embed, view=view)
+        msg = await ctx.send(f"{ctx.author.mention}'s Blackjack game for **{amount:,}** aura", embed=embed, view=view)
 
         playing = True
         log(f"Game started for {authorName.capitalize()}", "BJ_INFO")
@@ -192,7 +192,7 @@ async def blackjack(ctx, amount: str):
                 
                 new_balance = aura_manager.aura_data.get(user_id, 0)
                 
-                log(f"{authorName.capitalize()} timed out and lost {amount} aura", "BLACKJACK")
+                log(f"{authorName.capitalize()} timed out and lost {amount:,} aura", "BLACKJACK")
                 
                 await msg.edit(content=f"**Timed out!** You lost **{amount:,}** Aura.", embed=None, view=None)
                 await ctx.send(f"{ctx.author.mention} > New Balance: `{new_balance:,} Aura`")
@@ -292,7 +292,7 @@ async def higherlower(ctx, amount: str):
         embed = discord.Embed(title="Higher or Lower", color=0x2b2d31)
         embed.add_field(name="Current Dice", value=f"**{dice}**", inline=True)
         embed.add_field(name="Current Pot", value=f"**{pot:,}** Aura", inline=True)
-        embed.set_footer(text=f"Round: {turn + 1}/5 | Next Multiplier: {PAYOUTS[turn]}x | Buy-in: {amount}")
+        embed.set_footer(text=f"Round: {turn + 1}/5 | Next Multiplier: {PAYOUTS[turn]}x | Buy-in: {amount:,}")
         
         view = higherLowerEmbed(ctx.author)
         msg = await ctx.send(f"{ctx.author.mention} starting Higher/Lower!", embed=embed, view=view)
@@ -362,14 +362,14 @@ async def higherlower(ctx, amount: str):
                     embed.color = 0x6dab18
                     embed.set_field_at(0, name="Final Dice", value=f"**{roll}**")
                     embed.set_field_at(1, name="Final Payout", value=f"**{pot:,}** Aura")
-                    embed.set_footer(text=f"Game Completed | Multiplier: {PAYOUTS[-1]}x | Buy-in: {amount}")
+                    embed.set_footer(text=f"Game Completed | Multiplier: {PAYOUTS[-1]}x | Buy-in: {amount:,}")
                     await msg.edit(content=None, embed=embed, view=None)
                     playing = False
                 else:
                     embed.description += f"It was {view.choice}. Good job. Again! :smiling_imp:"
                     embed.set_field_at(0, name="Current Dice", value=f"**{dice}**")
                     embed.set_field_at(1, name="Current Pot", value=f"**{pot:,}** Aura")
-                    embed.set_footer(text=f"Round: {turn + 1}/5 | Next Multiplier: {PAYOUTS[turn]}x | Buy-in: {amount}")
+                    embed.set_footer(text=f"Round: {turn + 1}/5 | Next Multiplier: {PAYOUTS[turn]}x | Buy-in: {amount:,}")
                     view = higherLowerEmbed(ctx.author)
                     await msg.edit(embed=embed, view=view)
 
@@ -384,7 +384,7 @@ async def higherlower(ctx, amount: str):
                 embed.title = "YOU LOSE!"
                 embed.color = 0x992d22
                 embed.description += f"Aww you lost **{amount:,}** Aura."
-                embed.set_footer(text=f"Round: {turn + 1}/5 | Pot lost: {pot} | Buy-in: {amount}")
+                embed.set_footer(text=f"Round: {turn + 1}/5 | Pot lost: {pot} | Buy-in: {amount:,}")
                 embed.clear_fields()
                 await msg.edit(content=None, embed=embed, view=None)
                 playing = False
@@ -401,11 +401,16 @@ async def higherlower(ctx, amount: str):
         aura_manager.unlockUser(ctx.author.id, name=ctx.author.display_name)
 
 @bot.command(aliases=['rps'])
-async def rockPaperScissors(ctx, amount: str):
+async def rockPaperScissors(ctx, opponent: Optional[discord.Member] = None, amount: str = "0"):
     userID =  str(ctx.author.id)
+    vsUser = False
 
     if aura_manager.isBusy(ctx.author.id):
         return await ctx.send("Finish your current game first!")
+    
+    if isinstance(opponent, str) and amount == "0":
+        amount = opponent
+        opponent = None
     
     currentAura = aura_manager.aura_data.get(userID, 0)
 
@@ -420,6 +425,119 @@ async def rockPaperScissors(ctx, amount: str):
         except ValueError:
             return await ctx.send("Please enter a valid number, 'half', or 'all'.")
         
+    winMap = {"rock": "scissors", "paper": "rock", "scissors": "paper"}
+    emojis = {"rock": "🪨", "paper": "📄", "scissors": "✂️"}
+        
+    # Challenge Logic
+    if opponent:
+        if opponent.id == ctx.author.id:
+            return await ctx.send("You can't challenge yourself...")
+        if opponent.bot:
+            return await ctx.send("Don't ping me to challenge the house!")
+        
+        oppAura = aura_manager.aura_data.get(str(opponent.id), 0)
+        if oppAura < amount:
+            return await ctx.send(f"{opponent.mention} doesn't have enough aura 🤣 🫵")
+        
+        if aura_manager.isBusy(opponent.id):
+            return await ctx.send(f"**{opponent.display_name}** is already in a game")
+        
+        # Send Challenge Embed
+        aura_manager.lockUser(ctx.author.id, name=ctx.author.display_name)  # Lock author while challenging
+        log(f"{ctx.author.display_name} Challenged {opponent.display_name} to RPS | Bet: {amount:,} Aura", "RPS_DUEL")
+        view = rpsChallengeEmbed(ctx.author, opponent, amount)
+        embed = discord.Embed(
+            title = "RPS Challenge",
+            description=f"{ctx.author.mention} has challenged {opponent.mention} for `{amount:,} Aura`",
+            color=0xFFFFFF
+        )
+        msg = await ctx.send(content=opponent.mention, embed=embed, view=view)
+
+        await view.wait()
+
+        if not view.accepted:
+            log(f"{opponent.display_name} Declined duel against {ctx.author.display_name}", "RPS_DUEL")
+            aura_manager.unlockUser(ctx.author.id, name=ctx.author.display_name)
+            return await ctx.send("Challenge Declined or Timed Out..")
+        
+
+        # PvP Logic
+        log(f"{opponent.display_name} Accepted duel against {ctx.author.display_name} | Bet: {amount:,} Aura.", "RPS_DUEL")
+        aura_manager.lockUser(opponent.id, name=opponent.display_name)
+        
+        try:
+            pvpView = rpsPvPEmbed(ctx.author, opponent, amount)
+
+            pvpEmbed = discord.Embed(title="RPS Duel", color=0xFFFFFF)
+            pvpEmbed.add_field(name=ctx.author.display_name, value="Selecting...", inline=True)
+            pvpEmbed.add_field(name="vs", value="|", inline=True)
+            pvpEmbed.add_field(name=opponent.display_name, value="Selecting...", inline=True)
+
+            await msg.edit(content=None, embed=pvpEmbed, view=pvpView)
+
+            await pvpView.wait()
+
+            if pvpView.p1Choice and pvpView.p2Choice:
+                p1c, p2c = pvpView.p1Choice, pvpView.p2Choice
+
+                if p1c == p2c:
+                    resultText = (f"It was a **TIE**.")
+                    log(f"Game: {ctx.author.display_name} vs. {opponent.display_name} | Bet: {amount:,} Aura | Winner: TIE", "RPS_DUEL")
+                    color = 0x7289da
+                    
+            
+                elif winMap[p1c] == p2c:
+                    resultText = (f"{ctx.author.display_name} **WINS**.")
+                    log(f"Game: {ctx.author.display_name} vs. {opponent.display_name} | Bet: {amount:,} Aura | Winner: {ctx.author.display_name}", "RPS_DUEL")
+                    color = 0x6dab18
+                    aura_manager.update_aura(ctx.author.id, amount, ctx.author.display_name)
+                    aura_manager.update_aura(opponent.id, -amount, opponent.display_name)
+
+                    p1new = aura_manager.aura_data.get(str(ctx.author.id), 0)
+                    p2new = aura_manager.aura_data.get(str(opponent.id), 0)
+                    
+                    winMsg = (f"`{ctx.author.display_name} took {amount:,} Aura from {opponent.display_name}`")
+                    balMsg = (f"{ctx.author.mention}> New Balance: `{p1new}` | {opponent.mention}> New Balance: `{p2new}`")
+                
+                else:
+                    resultText = (f"{opponent.display_name} **WINS**")
+                    log(f"Game: {ctx.author.display_name} vs. {opponent.display_name} | Bet: {amount:,} Aura | Winner: {opponent.display_name}", "RPS_DUEL")
+                    color = 0x992d22
+                    aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
+                    aura_manager.update_aura(opponent.id, amount, opponent.display_name)
+
+                    p1new = aura_manager.aura_data.get(str(ctx.author.id), 0)
+                    p2new = aura_manager.aura_data.get(str(opponent.id), 0)
+
+                    winMsg = (f"`{opponent.display_name} took {amount:,} Aura from {ctx.author.display_name}`")
+                    balMsg = (f"{ctx.author.mention}> New Balance: `{p1new:,}` | {opponent.mention}> New Balance: `{p2new:,}`")
+
+
+
+                aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
+
+                # Winner Reveal
+                final = discord.Embed(title=resultText, color=color)
+                final.add_field(name=ctx.author.display_name, value=f"{emojis[p1c]} {p1c.capitalize()}", inline=True)
+                final.add_field(name="vs", value="|", inline=True)
+                final.add_field(name=opponent.display_name, value=f"{emojis[p2c]} {p2c.capitalize()}", inline=True)
+
+                await msg.edit(embed=final, view=None)
+                await ctx.send(f"{winMsg}")
+                await ctx.send(f"{balMsg}")
+
+            else:
+                await msg.edit(content="Duel Timed Out..", embed=None, view=None)
+                log(f"Game: {ctx.author.display_name} vs. {opponent.display_name} | Bet: {amount:,} Aura | Status: Timed Out", "RPS_DUEL")
+
+
+        finally:
+            aura_manager.unlockUser(ctx.author.id, name=ctx.author.display_name)
+            aura_manager.unlockUser(opponent.id, name=opponent.display_name)
+
+        return
+
+    # vs Bot  
     if amount <= 0:
         return await ctx.send("You must enter a valid amount!")
     if currentAura < amount:
@@ -427,19 +545,39 @@ async def rockPaperScissors(ctx, amount: str):
     
     #Lock user
     aura_manager.lockUser(ctx.author.id, name = ctx.author.display_name)
-    log(f"RPS Game started for {ctx.author.display_name}", "RPS")
+    log(f"{ctx.author.display_name} Started RPS game against The House", "RPS")
+
+
+
+    embed = discord.Embed(title="Rock Paper Scissors", color=0xFFFFFF)
+    embed.add_field(name=f"{ctx.author.display_name}", value="Selecting...", inline=True)
+    embed.add_field(name="vs", value="|", inline=True)
+    embed.add_field(name="The House", value="Thinking...", inline=True)
+    embed.set_footer(text=f"Stake: {amount:,} Aura")
+
+
     view = rockPaperScissorsEmbed(ctx.author, amount)
-    msg = await ctx.send(f"**{ctx.author.mention}** chose your move for **{amount:,}** Aura!", view=view)
+    msg = await ctx.send(embed=embed, view=view)
     
     await view.wait()
 
+
+
+        
+
     try:
+        # Timeout Logic
         if view.choice is None:
             aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
             aura_manager.update_aura(bot.user.id, +amount, "The House")
             aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
-            log(f"{ctx.author.display_name} timed out. Lost {amount} aura", "RPS")
-            return await msg.edit(content=f"{ctx.author.mention} **Timed out!** You lost `-{amount:,}` Aura.", view=None)
+            log(f"{ctx.author.display_name} timed out. Lost {amount:,} aura", "RPS")
+
+            embed.description = "**Game Cancelled: Timed Out**"
+            embed.color = 0xFFFFFF
+            return await msg.edit(embed=embed, view=None)
+        
+
         botChoice = random.choice(["rock", "paper", "scissors"])
         userChoice = view.choice
 
@@ -450,20 +588,20 @@ async def rockPaperScissors(ctx, amount: str):
 
         if userChoice == botChoice:
             resultText = (f"It was a **TIE**. We both chose {userChoice}")
-            log(f"Game tied for {ctx.author.display_name}. Returning {amount} aura", "RPS")
+            log(f"Game tied for {ctx.author.display_name}. Returning {amount:,} aura", "RPS")
             change = 0
             color = 0x7289da
             
     
         elif winMap[userChoice] == botChoice:
             resultText = (f"You **WIN**. {userChoice} beats {botChoice}")
-            log(f"{ctx.author.display_name} Won {amount} aura", "RPS")
+            log(f"{ctx.author.display_name} Won {amount:,} aura", "RPS")
             change = amount
             color = 0x6dab18
         
         else:
             resultText = (f"You **LOSE**. {botChoice} beats {userChoice}")
-            log(f"{ctx.author.display_name} Lost {amount} aura", "RPS")
+            log(f"{ctx.author.display_name} Lost {amount:,} aura", "RPS")
             change = -amount
             color = 0x992d22
             aura_manager.update_aura(bot.user.id, +amount, "The House")
@@ -474,19 +612,24 @@ async def rockPaperScissors(ctx, amount: str):
         aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
 
 
-        # New Balance
+        finalEmbed = discord.Embed(title=resultText, color=color)
+        finalEmbed.add_field(
+            name=f"{ctx.author.display_name}", 
+            value=f"{emojis[userChoice]} - **{userChoice.capitalize()}**", 
+            inline=True
+        )
+        finalEmbed.add_field(name="vs", value=" |", inline=True)
+        finalEmbed.add_field(
+            name="The House", 
+            value=f"{emojis[botChoice]} - **{botChoice.capitalize()}**", 
+            inline=True
+        )
+        
         newBal = aura_manager.aura_data.get(userID, 0)
-        botBal = aura_manager.aura_data.get(str(bot.user.id), 0)
+        finalEmbed.set_footer(text=f"Bet: {amount:,}")
 
-        embed = discord.Embed(description=resultText, color=color)
-        await msg.edit(content=None, embed=embed, view=None)
-
-        status = f"{ctx.author.mention} > New Balance: `{newBal}`"
-
-        if change < 0:
-            status += f"| Bank: `{botBal}`"
-        await ctx.send(status)
+        await msg.edit(content=None, embed=finalEmbed, view=None)
+        await ctx.send(f"{ctx.author.mention} > New Balance: `{newBal:,} Aura`")
 
     finally:
         aura_manager.unlockUser(ctx.author.id, name=ctx.author.display_name)
-

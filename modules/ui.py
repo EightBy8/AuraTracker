@@ -261,15 +261,90 @@ class rockPaperScissorsEmbed(discord.ui.View):
         await interaction.response.edit_message(content=f"what bro", view=None) 
         self.stop()
 
-    @discord.ui.button(label="Rock", emoji="🪨", style=discord.ButtonStyle.blurple)
+    @discord.ui.button(label="Rock", emoji="🪨", style=discord.ButtonStyle.green)
     async def rock(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.process_selection(interaction, "rock")
     
-    @discord.ui.button(label="Paper", emoji="📄", style=discord.ButtonStyle.blurple)
+    @discord.ui.button(label="Paper", emoji="📄", style=discord.ButtonStyle.red)
     async def paper(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.process_selection(interaction, "paper")
 
-    @discord.ui.button(label="Scissors", emoji="✂️", style=discord.ButtonStyle.blurple)
+    @discord.ui.button(label="Scissors", emoji="✂️", style=discord.ButtonStyle.grey)
     async def scissors(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.process_selection(interaction, "scissors")
 
+# Embed for RPS Request
+class rpsChallengeEmbed(discord.ui.View):
+    def __init__(self, author, opponent, amount):
+        super().__init__(timeout=60)
+        self.author = author 
+        self.opponent = opponent
+        self.amount = amount
+        self.accepted = False
+
+    @discord.ui.button(label="Accept", style=discord.ButtonStyle.green)
+    async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.opponent.id:
+            return await interaction.response.send_message("This game isn't for you lil bro..", ephemeral=True)
+        
+        self.accepted = True
+        await interaction.response.send_message(f"{self.author.mention} vs. {self.opponent.mention}", ephemeral=False)
+        self.stop()
+
+    @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
+    async def decline(self, interaction: discord.interactions, button:discord.Button):
+        if interaction.user.id != self.opponent.id:
+            return await interaction.response.send_message("This game isn't for you lil bro..", ephemeral=True)
+        
+        self.accepted = False
+        await interaction.response.send_message(f"{interaction.user.mention} Declined the duel.", ephemeral=False)
+        self.stop()
+
+class rpsPvPEmbed(discord.ui.View):
+    def __init__(self, p1, p2, amount):
+        super().__init__(timeout=60)
+        self.p1 = p1
+        self.p2 = p2
+        self.amount = amount
+        self.p1Choice = None
+        self.p2Choice = None
+
+    async def handleChoice(self, interaction, choice):
+        
+        if interaction.user.id == self.p1.id:
+            if self.p1Choice: return await interaction.response.send_message("Already picked!", ephemeral=True)
+            self.p1Choice = choice
+        elif interaction.user.id == self.p2.id:
+            if self.p2Choice: return await interaction.response.send_message("Already picked!", ephemeral=True)
+            self.p2Choice = choice
+        else:
+            return await interaction.response.send_message("This isn't your duel!", ephemeral=True)
+        
+        log(f"{interaction.user.display_name} made a choice: {choice.capitalize()}", "RPS")
+
+        await interaction.response.defer()
+
+        # Update Embed to show "Ready"
+        embed = interaction.message.embeds[0]
+        # Update field 0 (P1) or field 2 (P2)
+        idx = 0 if interaction.user.id == self.p1.id else 2
+        name = self.p1.display_name if idx == 0 else self.p2.display_name
+
+        embed.set_field_at(idx, name=name, value="✅ Ready!", inline=True)
+        await interaction.message.edit(embed=embed)
+
+        # If both picked, finish
+        if self.p1Choice and self.p2Choice:
+            self.stop()
+
+    @discord.ui.button(label="Rock", emoji="🪨", style=discord.ButtonStyle.green)
+    async def rock(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.handleChoice(interaction, "rock")
+
+    @discord.ui.button(label="Paper", emoji="📄", style=discord.ButtonStyle.red)
+    async def paper(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.handleChoice(interaction, "paper")
+
+    @discord.ui.button(label="Scissors", emoji="✂️", style=discord.ButtonStyle.grey)
+    async def scissors(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.handleChoice(interaction, "scissors")

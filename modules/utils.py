@@ -26,7 +26,8 @@ def log(message: str, level: str = "INFO") -> None:
         "BUTTON":      Fore.MAGENTA,    # Random Button Messages 
         "HIGHERLOWER": Fore.MAGENTA,    # Higher/Lower outcome messages
         "GOLD_BUTTON": Fore.YELLOW,     # Golden Button Messages
-        "RPS":         Fore.CYAN        # Rock Paper Scissors Messages
+        "RPS":         Fore.MAGENTA,       # Rock Paper Scissors against bot
+        "RPS_DUEL":    Fore.MAGENTA        # Rock Paper Scissors PvP
 
     }    
     color = colors.get(level, "")
