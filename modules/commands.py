@@ -3,6 +3,7 @@
 from discord.ext import commands
 import discord
 import json
+import inspect
 import os
 from modules.bot_setup import bot
 from modules.daily_tasks import save_config, load_config
@@ -158,6 +159,13 @@ async def aura(ctx: commands.Context, member: discord.Member | None = None) -> N
     user_aura = aura_manager.aura_data.get(str(member.id), 0)
     await ctx.send(f"{member.mention}'s aura: `{user_aura:,}`")
     log(f"Aura requested for {member} ({member.id})", "INFO")
+
+@bot.command()
+async def winstreak(ctx: commands.Context, member: discord.Member | None = None) -> None:
+    member = member or ctx.author
+    userWinstreak = aura_manager.winstreakData.get(str(member.id), 0)
+    await ctx.send(f"🔥{member.mention}'s Winstreak: `{userWinstreak}`")
+    log(f"Winstreak requested for {member} ({member.id})", "INFO")
 
 
 @bot.command()
@@ -450,31 +458,29 @@ async def spawnGoldenButton(ctx: commands.Context) -> None:
 
 @bot.command()
 async def help(ctx: commands.Context) -> None:
-    await ctx.send(
-        """
+    help_text = """        
+        **User:**
+        - `?aura [member]` - Check aura balance
+        - `?give_aura [member] [amount | "all", "half"]` - Send aura to another user
+        - `?lb` - Shows global leaderboard
+        - `?slb` - Shows who gives the most positive aura
+        - `?dslb` - Shows who gives the most negative aura
+        - `?dailylb` - Shows countdown for next daily leaderboard post
 
-        ## Aura Bot Commands
+        **Games:**
+        - `?coinflip`, `?cf [amount | "all", "half"]` - Play a coinflip game
+        - `?blackjack`, `?bj [amount | "all", "half"]` - Play a blackjack game
+        - `?higherlower`, `?hl [amount | "all", "half"]` - Play a higher/lower game (Min 10)
+        - `?rps [@member] [amount] | ?rps [amount]` - Challenge a friend or the house
 
-        ### __*User:*__
-        - ?aura [Member] - check aura
-        - ?give_aura [Memeber] [Amount | "all", "half"] - Send aura to another user
-        - ?lb - shows leaderboard
-        - ?slb - shows who gives the most positive aura
-        - ?dslb - shows who gives the most negative aura
-        - ?dailylb - shows countdown for next daily leaderboard post
-        - ?coinflip, ?cf - [Amount | "all", "half"] - play a coinflip game
-        - ?blackjack, ?bj - [Amount | "all", "half"] - play a blackjack game
-        - ?higherlower, ?hl - [Amount | "all", "half"] - play a higher/lower game (Min 10)
-
-
-
-        ### __*Aura Officer Commands :*__
-        - `?set_aura [member] [amount] - set aura`
-        - `?reset_aura [member] - reset aura`
-        - `?modify_aura [member] [amount] - modify aura`
-        - `?set_channel - sets the channel for daily leaderboards to be sent`
-        - `?add_officer - adds user to aura officer list`
-
-        """
-    )
+        **Aura Officer Commands:**
+        - `?set_aura [member] [amount]` - Set a user's absolute aura
+        - `?reset_aura [member]` - Reset a user's aura to 0
+        - `?modify_aura [member] [amount]` - Add/subtract from current aura
+        - `?set_channel` - Sets the channel for daily leaderboards
+        - `?add_officer [member]` - Adds user to the aura officer list
+        
+        *Note: Use "all" or "half" for quick betting.*
+    """
+    await ctx.send(inspect.cleandoc(help_text))
 

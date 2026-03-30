@@ -401,7 +401,7 @@ async def higherlower(ctx, amount: str):
         aura_manager.unlockUser(ctx.author.id, name=ctx.author.display_name)
 
 @bot.command(aliases=['rps'])
-async def rockPaperScissors(ctx, opponent: Optional[discord.Member] = None, amount: str = "0"):
+async def rockPaperScissors(ctx, opponent: Optional[discord.Member] = None, amount: str = 0):
     userID =  str(ctx.author.id)
     vsUser = False
 
@@ -414,16 +414,22 @@ async def rockPaperScissors(ctx, opponent: Optional[discord.Member] = None, amou
     
     currentAura = aura_manager.aura_data.get(userID, 0)
 
-    # Bet Amount Logic
-    if amount.lower() == "all":
-        amount = currentAura
-    elif amount.lower() == "half":
-        amount = currentAura // 2
-    else:
-        try:
-            amount = int(amount)
-        except ValueError:
-            return await ctx.send("Please enter a valid number, 'half', or 'all'.")
+    if isinstance(amount, str):
+        if amount.lower() == "all":
+            amount = currentAura
+        elif amount.lower() == "half":
+            amount = currentAura // 2
+        else:
+            try:
+                amount = int(amount)
+            except ValueError:
+                return await ctx.send("Please enter a valid number, 'half' or 'all'." )
+            
+        if amount <= 0:
+            return await ctx.send("You must enter a valid amount!")
+        
+        if currentAura < amount:
+            return await ctx.send(f"You only have **{currentAura}** Aura.")
         
     winMap = {"rock": "scissors", "paper": "rock", "scissors": "paper"}
     emojis = {"rock": "🪨", "paper": "📄", "scissors": "✂️"}
@@ -484,6 +490,10 @@ async def rockPaperScissors(ctx, opponent: Optional[discord.Member] = None, amou
                     resultText = (f"It was a **TIE**.")
                     log(f"Game: {ctx.author.display_name} vs. {opponent.display_name} | Bet: {amount:,} Aura | Winner: TIE", "RPS_DUEL")
                     color = 0x7289da
+
+                    winMsg = (f"`Game Tied.`")
+                    balMsg = (f"{ctx.author.mention}> New Balance: `{currentAura}` | {opponent.mention}> New Balance: `{oppAura}`")
+
                     
             
                 elif winMap[p1c] == p2c:
@@ -492,12 +502,19 @@ async def rockPaperScissors(ctx, opponent: Optional[discord.Member] = None, amou
                     color = 0x6dab18
                     aura_manager.update_aura(ctx.author.id, amount, ctx.author.display_name)
                     aura_manager.update_aura(opponent.id, -amount, opponent.display_name)
-
+                    
+                    # Aura Update
                     p1new = aura_manager.aura_data.get(str(ctx.author.id), 0)
                     p2new = aura_manager.aura_data.get(str(opponent.id), 0)
+
+                    #Winstreak Update
+                    p1Streak = aura_manager.updateWinstreak(ctx.author.id, True)
+                    p2Streak = aura_manager.updateWinstreak(opponent.id, False)
                     
-                    winMsg = (f"`{ctx.author.display_name} took {amount:,} Aura from {opponent.display_name}`")
+                    winMsg = (f"`{ctx.author.display_name} took {amount:,} Aura from {opponent.display_name}`\nStreak: {p1Streak}")
                     balMsg = (f"{ctx.author.mention}> New Balance: `{p1new}` | {opponent.mention}> New Balance: `{p2new}`")
+                    streakMsg = (f"🔥 {ctx.author.display_name}'s Winstreak: {p1Streak}")
+
                 
                 else:
                     resultText = (f"{opponent.display_name} **WINS**")
@@ -506,12 +523,17 @@ async def rockPaperScissors(ctx, opponent: Optional[discord.Member] = None, amou
                     aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
                     aura_manager.update_aura(opponent.id, amount, opponent.display_name)
 
+                    # Aura Update
                     p1new = aura_manager.aura_data.get(str(ctx.author.id), 0)
                     p2new = aura_manager.aura_data.get(str(opponent.id), 0)
 
+                    #Winstreak Update
+                    p2Streak = aura_manager.updateWinstreak(opponent.id, True)
+                    p1Streak = aura_manager.updateWinstreak(ctx.author.id, False)
+
                     winMsg = (f"`{opponent.display_name} took {amount:,} Aura from {ctx.author.display_name}`")
                     balMsg = (f"{ctx.author.mention}> New Balance: `{p1new:,}` | {opponent.mention}> New Balance: `{p2new:,}`")
-
+                    streakMsg = (f"🔥 {opponent.display_name}'s Winstreak: {p2Streak}")
 
 
                 aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
@@ -525,6 +547,7 @@ async def rockPaperScissors(ctx, opponent: Optional[discord.Member] = None, amou
                 await msg.edit(embed=final, view=None)
                 await ctx.send(f"{winMsg}")
                 await ctx.send(f"{balMsg}")
+                await ctx.send(f"{streakMsg}")
 
             else:
                 await msg.edit(content="Duel Timed Out..", embed=None, view=None)
@@ -538,10 +561,10 @@ async def rockPaperScissors(ctx, opponent: Optional[discord.Member] = None, amou
         return
 
     # vs Bot  
-    if amount <= 0:
-        return await ctx.send("You must enter a valid amount!")
-    if currentAura < amount:
-        return await ctx.send(f"You Only Have **{currentAura:,}** Aura")
+    #if amount <= 0:
+    #    return await ctx.send("You must enter a valid amount!")
+    #if currentAura < amount:
+    #    return await ctx.send(f"You Only Have **{currentAura:,}** Aura")
     
     #Lock user
     aura_manager.lockUser(ctx.author.id, name = ctx.author.display_name)

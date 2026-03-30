@@ -14,11 +14,13 @@ AURA_FILE: str = os.path.join(DATA_DIR, "aura.json")
 HISTORY_FILE: str = os.path.join(DATA_DIR, "auraHistory.json")
 AURACOUNTER_FILE: str = os.path.join(DATA_DIR, "auraCount.json")
 CONFIG_FILE: str = os.path.join(DATA_DIR, "config.json")
+WINSTREAK_FILE = os.path.join(DATA_DIR, "winstreaks.json")
 
 # In-memory state
 aura_data: Dict[str, int] = {}
 user_reactions: Dict[int, list[str]] = {}
 user_aura_count: Dict[str, Dict[str, int]] = {}
+winstreakData: Dict[str, int] = {}
 
 # Global Variables
 OWNER_IDS: list[int] = []
@@ -114,6 +116,33 @@ def update_aura(user_id: int, change: int, name: str | None = None, user_obj=Non
     log(f"Updated aura for {logName}: {aura_data[uid]}", "INFO")
 
 
+# ---- Winstreak Handler ---- 
+def loadWinstreak() -> None:
+    """Load the winstreak data into memory"""
+    global winstreakData
+    loaded = load_json(WINSTREAK_FILE)
+    winstreak_data = {k: int(v) for k, v in loaded.items()}
+    log("'winstreak' data loaded", "SUCCESS" if winstreak_data else "WARNING")
+
+
+def updateWinstreak(userID: int, won: bool) -> int:
+    uID = str(userID)
+    if won:
+        current = winstreakData.get(uID, 0)
+        winstreakData[uID] = current + 1
+    else:
+        winstreakData[uID] = 0
+
+    save_json(WINSTREAK_FILE, winstreakData)
+    log(f"Winstreak for {uID} updated to {winstreakData[uID]}", "INFO")
+    return winstreakData[uID]
+
+def getWinstreak(userID: int) -> int:
+    """Get a user's winstreak"""
+    return winstreakData.get(str(userID), 0)
+
+
+
 # ---- Aura-count-per-sender (positive / negative counts) ----
 def load_aura_count() -> None:
     """Load counters for how much aura each sender has given (POS/NEG)."""
@@ -156,6 +185,7 @@ def get_negative_leaderboard() -> list[tuple[str, int]]:
         reverse=True,
     )
 
+
 # ---- Game Lock/Unlock ----
 activePlayers = set()
 
@@ -167,3 +197,5 @@ def lockUser(user_id, name="Unknown",):
 def unlockUser(user_id, name="Unknown"):
     activePlayers.discard(user_id)
     log(f"{name} has been unlocked", "INFO")
+
+

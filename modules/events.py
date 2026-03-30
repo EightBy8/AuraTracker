@@ -8,6 +8,7 @@ from modules import aura_manager
 
 # Load aura counts into memory
 aura_manager.load_aura_count()
+aura_manager.loadWinstreak()
 
 @bot.event
 async def on_ready():
