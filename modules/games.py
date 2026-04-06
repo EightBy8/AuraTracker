@@ -561,10 +561,10 @@ async def rockPaperScissors(ctx, opponent: Optional[discord.Member] = None, amou
         return
 
     # vs Bot  
-    #if amount <= 0:
-    #    return await ctx.send("You must enter a valid amount!")
-    #if currentAura < amount:
-    #    return await ctx.send(f"You Only Have **{currentAura:,}** Aura")
+    if amount <= 0:
+        return await ctx.send("You must enter a valid amount!")
+    if currentAura < amount:
+        return await ctx.send(f"You Only Have **{currentAura:,}** Aura")
     
     #Lock user
     aura_manager.lockUser(ctx.author.id, name = ctx.author.display_name)

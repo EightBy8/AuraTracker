@@ -471,7 +471,8 @@ async def help(ctx: commands.Context) -> None:
         - `?coinflip`, `?cf [amount | "all", "half"]` - Play a coinflip game
         - `?blackjack`, `?bj [amount | "all", "half"]` - Play a blackjack game
         - `?higherlower`, `?hl [amount | "all", "half"]` - Play a higher/lower game (Min 10)
-        - `?rps [@member] [amount] | ?rps [amount]` - Challenge a friend or the house
+        - `?rps` `[@member] [amount]` | Challenge a friend to rock paper scissors
+        - `?rps` `[amount]` | Challenge the house to rock paper scissors
 
         **Aura Officer Commands:**
         - `?set_aura [member] [amount]` - Set a user's absolute aura

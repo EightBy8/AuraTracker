@@ -245,7 +245,7 @@ class higherLowerEmbed(discord.ui.View):
         await interaction.response.defer()
         self.stop()
 
-
+# RPS vs Bot Embed 
 class rockPaperScissorsEmbed(discord.ui.View):
     def __init__(self, author, amount):
         super().__init__(timeout=60)
@@ -300,6 +300,7 @@ class rpsChallengeEmbed(discord.ui.View):
         await interaction.response.send_message(f"{interaction.user.mention} Declined the duel.", ephemeral=False)
         self.stop()
 
+# RPS PvP Embed
 class rpsPvPEmbed(discord.ui.View):
     def __init__(self, p1, p2, amount):
         super().__init__(timeout=60)
@@ -348,3 +349,4 @@ class rpsPvPEmbed(discord.ui.View):
     @discord.ui.button(label="Scissors", emoji="✂️", style=discord.ButtonStyle.grey)
     async def scissors(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.handleChoice(interaction, "scissors")
+
