@@ -24,6 +24,11 @@ async def on_ready():
         save_config()
         log(f"Saved CHANNEL_ID = {aura_manager.CHANNEL_ID} and OWNER_IDs = {aura_manager.OWNER_IDS}", "SUCCESS")
 
+    await bot.change_presence(
+        status=discord.Status.online,
+        activity=discord.Game(name="v2.4.2")
+    )
+
 @bot.event
 async def on_reaction_add(reaction: discord.Reaction, user: discord.User | discord.Member) -> None:
     """
