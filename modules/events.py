@@ -10,6 +10,7 @@ from modules import aura_manager
 aura_manager.load_aura_count()
 aura_manager.loadWinstreak()
 
+
 @bot.event
 async def on_ready():
     updated = False
@@ -22,29 +23,41 @@ async def on_ready():
 
     if updated:
         save_config()
-        log(f"Saved CHANNEL_ID = {aura_manager.CHANNEL_ID} and OWNER_IDs = {aura_manager.OWNER_IDS}", "SUCCESS")
+        log(
+            f"Saved CHANNEL_ID = {aura_manager.CHANNEL_ID} and OWNER_IDs = {aura_manager.OWNER_IDS}",
+            "SUCCESS",
+        )
 
+    # VERSION NUMBER
     await bot.change_presence(
-        status=discord.Status.online,
-        activity=discord.Game(name="v2.4.2")
+        status=discord.Status.online, activity=discord.Game(name="v2.4.3")
     )
 
+
 @bot.event
-async def on_reaction_add(reaction: discord.Reaction, user: discord.User | discord.Member) -> None:
+async def on_reaction_add(
+    reaction: discord.Reaction, user: discord.User | discord.Member
+) -> None:
     """
     Track reaction adds and update aura/sender counters.
     Ignores bot reactions and self-reacts.
     """
     try:
-        if user.bot: return
+        if user.bot:
+            return
 
         message: discord.Message | None = reaction.message
         target: discord.User | discord.Member = message.author
-        if message is None: return
-        if target is None or getattr(target, "bot", False): return
-        if user.id == target.id: return
+        if message is None:
+            return
+        if target is None or getattr(target, "bot", False):
+            return
+        if user.id == target.id:
+            return
 
-        emoji_name: str = reaction.emoji if isinstance(reaction.emoji, str) else reaction.emoji.name
+        emoji_name: str = (
+            reaction.emoji if isinstance(reaction.emoji, str) else reaction.emoji.name
+        )
         aura_manager.user_reactions.setdefault(user.id, [])
         if emoji_name not in aura_manager.user_reactions[user.id]:
             aura_manager.user_reactions[user.id].append(emoji_name)
@@ -63,22 +76,33 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.User | disco
 
 
 @bot.event
-async def on_reaction_remove(reaction: discord.Reaction, user: discord.User | discord.Member) -> None:
+async def on_reaction_remove(
+    reaction: discord.Reaction, user: discord.User | discord.Member
+) -> None:
     """
     Track reaction removals; reverse the aura & sender counters if appropriate.
     """
     try:
-        if user.bot: return
+        if user.bot:
+            return
 
         message: discord.Message | None = reaction.message
         target: discord.User | discord.Member = message.author
-        if message is None: return
-        if target is None or getattr(target, "bot", False): return
-        if user.id == target.id: return
+        if message is None:
+            return
+        if target is None or getattr(target, "bot", False):
+            return
+        if user.id == target.id:
+            return
 
-        emoji_name: str = reaction.emoji if isinstance(reaction.emoji, str) else reaction.emoji.name
+        emoji_name: str = (
+            reaction.emoji if isinstance(reaction.emoji, str) else reaction.emoji.name
+        )
 
-        if user.id in aura_manager.user_reactions and emoji_name in aura_manager.user_reactions[user.id]:
+        if (
+            user.id in aura_manager.user_reactions
+            and emoji_name in aura_manager.user_reactions[user.id]
+        ):
             if emoji_name == "aura":
                 aura_manager.update_aura(target.id, -1)
                 aura_manager.adjust_sender_count(user.id, "POS", -1)
@@ -98,12 +122,13 @@ async def on_reaction_remove(reaction: discord.Reaction, user: discord.User | di
 async def on_command_error(ctx, error):
     # Command not found
     if isinstance(error, commands.CommandNotFound):
-        log(f"{ctx.author} entered a invalid command","WARNING")
+        log(f"{ctx.author} entered a invalid command", "WARNING")
         return await ctx.send("That command does not exist. Try `?help`")
     elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send(f"You're missing a required part of that command: `{error.param.name}`")
+        await ctx.send(
+            f"You're missing a required part of that command: `{error.param.name}`"
+        )
     elif isinstance(error, commands.MemberNotFound):
         await ctx.send("User not found. Make sure you mention them!")
     else:
         log(f"UNHANDELED ERROR {error}", "ERROR")
-
