@@ -1,8 +1,21 @@
 import os
 from modules.bot_setup import bot
-from modules.aura_manager import load_aura, load_history, ensure_today, save_json, load_aura_count, HISTORY_FILE
+from modules.aura_manager import (
+    load_aura,
+    load_history,
+    ensure_today,
+    save_json,
+    load_aura_count,
+    HISTORY_FILE,
+)
 from modules.utils import log
-from modules.daily_tasks import load_config, daily_aura_snapshot, post_daily_leaderboard, spawn_aura_button, spawn_golden_button
+from modules.daily_tasks import (
+    load_config,
+    daily_aura_snapshot,
+    post_daily_leaderboard,
+    spawn_aura_button,
+    spawn_golden_button,
+)
 
 # Load data into memory before registering commands/events
 load_config()
@@ -14,7 +27,7 @@ save_json(HISTORY_FILE, history)
 
 # Import commands and events so they register with the bot
 import modules.commands  # noqa: E402,F401
-import modules.events    # noqa: E402,F401
+import modules.events  # noqa: E402,F401
 import modules.games
 
 
@@ -33,4 +46,3 @@ bot.setup_hook = setup_hook
 # Run bot
 log("Bot is starting...", "SUCCESS")
 bot.run(os.getenv("DISCORD_TOKEN"))
-

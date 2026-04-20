@@ -22,20 +22,30 @@ def load_config() -> None:
                 data = json.load(f)
                 aura_manager.CHANNEL_ID = data.get("channel_id")
                 aura_manager.OWNER_IDS = [int(x) for x in data.get("owner_id", [])]
-                log(f"Loaded CHANNEL_ID = {aura_manager.CHANNEL_ID}", 
-                    "SUCCESS" if aura_manager.CHANNEL_ID else "WARNING")
-                log(f"Loaded OWNER_IDS = {aura_manager.OWNER_IDS}", 
-                    "SUCCESS" if aura_manager.OWNER_IDS else "WARNING")
+                log(
+                    f"Loaded CHANNEL_ID = {aura_manager.CHANNEL_ID}",
+                    "SUCCESS" if aura_manager.CHANNEL_ID else "WARNING",
+                )
+                log(
+                    f"Loaded OWNER_IDS = {aura_manager.OWNER_IDS}",
+                    "SUCCESS" if aura_manager.OWNER_IDS else "WARNING",
+                )
         except Exception as e:
             log(f"Failed to load config.json: {e}", "ERROR")
 
+
 def save_config() -> None:
     """Save channel config to JSON file."""
-    data = {"channel_id": aura_manager.CHANNEL_ID,
-            "owner_id": list(aura_manager.OWNER_IDS)}
+    data = {
+        "channel_id": aura_manager.CHANNEL_ID,
+        "owner_id": list(aura_manager.OWNER_IDS),
+    }
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
-    log(f"Saved CHANNEL_ID = {aura_manager.CHANNEL_ID} and OWNER_IDs = {aura_manager.OWNER_IDS}", "SUCCESS")
+    log(
+        f"Saved CHANNEL_ID = {aura_manager.CHANNEL_ID} and OWNER_IDs = {aura_manager.OWNER_IDS}",
+        "SUCCESS",
+    )
 
 
 async def daily_aura_snapshot() -> None:
@@ -48,7 +58,11 @@ async def daily_aura_snapshot() -> None:
 
     while not bot.is_closed():
         wait_seconds: float = seconds_until(9, 29)
-        hours, minutes, seconds = int(wait_seconds // 3600), int((wait_seconds % 3600) // 60), int(wait_seconds % 60)
+        hours, minutes, seconds = (
+            int(wait_seconds // 3600),
+            int((wait_seconds % 3600) // 60),
+            int(wait_seconds % 60),
+        )
         log(f"Waiting {hours}h {minutes}m {seconds}s until next run", "SNAPSHOT")
         await asyncio.sleep(wait_seconds)
 
@@ -58,7 +72,7 @@ async def daily_aura_snapshot() -> None:
 async def take_snapshot() -> None:
     """Helper function to take a snapshot immediately."""
     log("Taking daily snapshot...", "INFO")
-    history: dict =  aura_manager.load_history()
+    history: dict = aura_manager.load_history()
     aura_manager.ensure_today(history)
     today: str = dt.date.today().strftime("%Y-%m-%d")
     timestamp: str = dt.datetime.now().strftime("%H-%M-%S")
@@ -74,7 +88,7 @@ async def daily_leaderboard_data() -> list[str] | str:
     """
     history: dict = aura_manager.load_history()
     dates: list[str] = sorted(history.keys())
-    
+
     if len(dates) < 2:
         return "Not enough data for daily leaderboard!"
 
@@ -82,16 +96,18 @@ async def daily_leaderboard_data() -> list[str] | str:
     today: dict[str, int] = history[dates[-1]]["aura"]
 
     yesterday_sorted = sorted(yesterday.items(), key=lambda x: x[1], reverse=True)
-    yesterday_ranks: dict[str, int] = {user_id: rank for rank, (user_id, _) in enumerate(yesterday_sorted, start=1)}
-    
+    yesterday_ranks: dict[str, int] = {
+        user_id: rank for rank, (user_id, _) in enumerate(yesterday_sorted, start=1)
+    }
+
     today_sorted = sorted(today.items(), key=lambda x: x[1], reverse=True)
 
     formatted_lines = []
     for rank, (user_id, score) in enumerate(today_sorted, start=1):
         # --- SAFE USER LOOKUP ---
         # 1. Start with a fallback name so the variable ALWAYS exists
-        user_name = f"User({user_id})" 
-        
+        user_name = f"User({user_id})"
+
         # 2. Try to get the name from cache
         user = bot.get_user(int(user_id))
         if user:
@@ -102,7 +118,7 @@ async def daily_leaderboard_data() -> list[str] | str:
                 user = await bot.fetch_user(int(user_id))
                 user_name = user.name.capitalize()
             except:
-                pass # user_name stays as "User(id)" if this fails
+                pass  # user_name stays as "User(id)" if this fails
 
         # --- CALCULATE DIFFERENCE AND STATUS ---
         old_rank = yesterday_ranks.get(user_id)
@@ -122,10 +138,11 @@ async def daily_leaderboard_data() -> list[str] | str:
         # --- FORMAT THE STRING ---
         prefix = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, f"**#{rank}**")
         line = f"{prefix} **{user_name}** {status}\n\u2003Aura: `{score}` {diff_text}\n"
-        formatted_lines.append(line) 
+        formatted_lines.append(line)
 
     log("Daily leaderboard data processed", "INFO")
     return formatted_lines
+
 
 async def post_daily_leaderboard() -> None:
     """Post the daily leaderboard to the configured channel at ~09:30 local time."""
@@ -138,7 +155,11 @@ async def post_daily_leaderboard() -> None:
     while not bot.is_closed():
         wait_seconds: float = seconds_until(9, 30)
         # wait_seconds: float = 10
-        hours, minutes, seconds = int(wait_seconds // 3600), int((wait_seconds % 3600) // 60), int(wait_seconds % 60)
+        hours, minutes, seconds = (
+            int(wait_seconds // 3600),
+            int((wait_seconds % 3600) // 60),
+            int(wait_seconds % 60),
+        )
         log(f"Waiting {hours}h {minutes}m {seconds}s until next post", "LEADERBOARD")
         await asyncio.sleep(wait_seconds)
 
@@ -153,6 +174,7 @@ def get_random_aura_message() -> str:
 
     channel = bot.get_channel(aura_manager.CHANNEL_ID)
 
+
 async def send_leaderboard() -> None:
     """Helper function to send the leaderboard once."""
     if aura_manager.CHANNEL_ID is None:
@@ -160,23 +182,23 @@ async def send_leaderboard() -> None:
         return
 
     channel = bot.get_channel(aura_manager.CHANNEL_ID)
-    
+
     if channel is None:
         log(f"Channel {aura_manager.CHANNEL_ID} not found. Cannot post.", "ERROR")
         return
 
     data = await daily_leaderboard_data()
-    
-    if isinstance(data, str): 
+
+    if isinstance(data, str):
         await channel.send(data)
         return
 
-    #Create the view
-    view = leaderboardEmbed(data, title="Daily Aura Standings", color=0x6dab18)
+    # Create the view
+    view = leaderboardEmbed(data, title="Daily Aura Standings", color=0x6DAB18)
     random_message = get_random_aura_message()
     embed = view.createEmbed()
-    
-    botText=f"||@here||**{random_message}**"
+
+    botText = f"||@here||**{random_message}**"
     await channel.send(content=botText, embed=embed, view=view)
 
     log("Daily Leaderboard Posted", "SUCCESS")
@@ -188,26 +210,37 @@ async def spawn_aura_button() -> None:
     if aura_manager.CHANNEL_ID is None:
         log("CHANNEL_ID not set. Skipping button spawns", "BUTTON_INFO")
         return
-    
+
     channel = bot.get_channel(aura_manager.CHANNEL_ID)
     if channel is None:
-        log(f"Channel {aura_manager.CHANNEL_ID} not found. Cannot spawn random button", "BUTTON_INFO")
+        log(
+            f"Channel {aura_manager.CHANNEL_ID} not found. Cannot spawn random button",
+            "BUTTON_INFO",
+        )
         return
-    
+
     while not bot.is_closed():
         try:
             # Calculate next spawn time
             next_spawn = dt.datetime.now() + dt.timedelta(minutes=25)
-            log(f"Next check scheduled at {next_spawn.strftime('%I:%M:%S %p')}", "BUTTON_INFO")
-            
-            await asyncio.sleep(25 * 60) # 25 Minutes
-            if random.choice([True,False]):
+            log(
+                f"Next check scheduled at {next_spawn.strftime('%I:%M:%S %p')}",
+                "BUTTON_INFO",
+            )
+
+            await asyncio.sleep(25 * 60)  # 25 Minutes
+            if random.choice([True, False]):
                 channel = bot.get_channel(aura_manager.CHANNEL_ID)
                 if channel is None:
-                    log(f"Channel {aura_manager.CHANNEL_ID} not found. Skipping this spawn", "BUTTON_INFO")
+                    log(
+                        f"Channel {aura_manager.CHANNEL_ID} not found. Skipping this spawn",
+                        "BUTTON_INFO",
+                    )
                     continue
                 view = randomButton()
-                message = await channel.send("Click this button for a chance to get some aura!", view=view)
+                message = await channel.send(
+                    "Click this button for a chance to get some aura!", view=view
+                )
                 view.message = message
 
                 log("Button spawned", "BUTTON_INFO")
@@ -216,9 +249,10 @@ async def spawn_aura_button() -> None:
         except Exception as e:
             log(f"Error during random aura spawn: {e}", "ERROR")
 
+
 async def spawn_golden_button() -> None:
-    await bot.wait_until_ready() # Wait for bot to login
-    
+    await bot.wait_until_ready()  # Wait for bot to login
+
     try:
         while not bot.is_closed():
             now = dt.datetime.now()
@@ -228,37 +262,50 @@ async def spawn_golden_button() -> None:
                 # Calculate seconds from now until 11:59:59 PM
                 end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=0)
                 seconds_left = (end_of_day - now).total_seconds()
-                
+
                 # Pick a random second in the day
                 wait_time = random.uniform(0, max(0, seconds_left))
                 scheduled_for = now + dt.timedelta(seconds=wait_time)
-                
-                log(f"Golden Button scheduled for {scheduled_for.strftime('%I:%M %p')}", "GOLD_BUTTON")
+                bot.nextGoldenSpawn = scheduled_for
+
+                log(
+                    f"Golden Button scheduled for {scheduled_for.strftime('%I:%M %p')}",
+                    "GOLD_BUTTON",
+                )
                 await asyncio.sleep(wait_time)
-                
+
                 # --- SPAWN LOGIC ---
                 channel = bot.get_channel(aura_manager.CHANNEL_ID)
                 if channel:
                     view = goldenButtonEmbed()
-                    message = await channel.send("**A Golden Button has appeared!**", view=view)
+                    message = await channel.send(
+                        "**A Golden Button has appeared!**", view=view
+                    )
                     view.message = message
                     log("Golden Button has been spawned.", "SUCCESS")
                 else:
-                    log(f"Channel {aura_manager.CHANNEL_ID} not found for Golden Button.", "ERROR")
-                
+                    log(
+                        f"Channel {aura_manager.CHANNEL_ID} not found for Golden Button.",
+                        "ERROR",
+                    )
+
                 # Sleep untill 9am
-                tomorrow_9am = (now + dt.timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
+                tomorrow_9am = (now + dt.timedelta(days=1)).replace(
+                    hour=9, minute=0, second=0, microsecond=0
+                )
                 sleep_until_reset = (tomorrow_9am - dt.datetime.now()).total_seconds()
-                
-                log(f"Button cycle finished. Resetting at 9 AM tomorrow.", "GOLD_BUTTON")
+
+                log(
+                    f"Button cycle finished. Resetting at 9 AM tomorrow.", "GOLD_BUTTON"
+                )
                 await asyncio.sleep(max(0, sleep_until_reset))
 
             # If it's 12 AM - 8:59 AM wait until 9 AM
             else:
                 target_9am = now.replace(hour=9, minute=0, second=0, microsecond=0)
-                if now.hour >= 9: # Safety for edge cases
+                if now.hour >= 9:  # Safety for edge cases
                     target_9am += dt.timedelta(days=1)
-                
+
                 wait_until_9 = (target_9am - now).total_seconds()
                 log(f"Outside spawn hours. Waiting until 9 AM...", "GOLD_BUTTON")
                 await asyncio.sleep(max(0, wait_until_9))
@@ -266,3 +313,4 @@ async def spawn_golden_button() -> None:
     except Exception as e:
         log(f"Error in spawn_golden_button: {e}", "ERROR")
         await asyncio.sleep(60)
+
