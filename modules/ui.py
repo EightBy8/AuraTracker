@@ -183,6 +183,7 @@ class goldenButtonEmbed(discord.ui.View):
         if self.clicked:
             return
         self.clicked = True
+        interaction.client.userClicked = interaction.user.display_name
 
         #Update aura
         amount = 25

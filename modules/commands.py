@@ -480,6 +480,12 @@ async def gb(ctx: commands.Context) -> None:
         return await ctx.send(f"Finish your current game first!")
 
     spawnTime = getattr(bot, "nextGoldenSpawn", None)
+    log(f"{ctx.author.display_name} checked for golden button", "INFO")
+    try:
+        userClicked = getattr(bot, "userClicked")
+    except AttributeError:
+        userClicked = None
+
     now = datetime.now()
     
     if spawnTime is None:
@@ -492,9 +498,10 @@ async def gb(ctx: commands.Context) -> None:
             f"{ctx.author.mention} > The Golden Button Has Not Spawned Today!"
         )
     else:
-        return await ctx.send(
-            f"{ctx.author.mention} > The Golden Button Has Already Spawned Today!"
-        )
+        if userClicked == None:
+            return await ctx.send(f"The Golden Button Already Spanwed Today But Nobody Pressed It...")
+        else:
+            return await ctx.send(f"{ctx.author.mention} > The Golden Button Has Already Spawned Today!\nClicked By > `{userClicked}`")
 
 
 @bot.command()
