@@ -30,7 +30,7 @@ async def on_ready():
 
     # VERSION NUMBER
     await bot.change_presence(
-        status=discord.Status.online, activity=discord.Game(name="v2.4.4")
+        status=discord.Status.online, activity=discord.Game(name="v2.4.5")
     )
 
 

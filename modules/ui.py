@@ -2,6 +2,7 @@ import discord
 import json
 import os
 import random
+from modules import bot_setup
 from modules.utils import log
 from modules.aura_manager import isBusy, lockUser, unlockUser, update_aura, aura_data
 
@@ -135,7 +136,7 @@ class randomButton(discord.ui.View):
             auraChange = random.randint(1,20)
             log(f"{interaction.user.name.capitalize()} gain {auraChange}", "BUTTON")
         else:
-            auraChange = -random.randint(1,15)
+            auraChange = -random.randint(1,10)
             log(f"{interaction.user.name.capitalize()} loss {auraChange}", "BUTTON")
 
         # Pick a message template once
@@ -186,7 +187,7 @@ class goldenButtonEmbed(discord.ui.View):
         interaction.client.userClicked = interaction.user.display_name
 
         #Update aura
-        amount = 25
+        amount = 40
         update_aura(interaction.user.id, amount, user_obj=interaction.user)
 
         # Get new balance
@@ -204,7 +205,6 @@ class goldenButtonEmbed(discord.ui.View):
 
         # Stop the view to clean up
         self.stop()
-
 
     async def on_timeout(self):
         if self.message:

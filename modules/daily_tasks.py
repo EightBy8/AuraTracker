@@ -257,10 +257,10 @@ async def spawn_golden_button() -> None:
         while not bot.is_closed():
             now = dt.datetime.now()
 
-            # Active Window 9AM to Midnight
-            if 9 <= now.hour < 24:
-                # Calculate seconds from now until 11:59:59 PM
-                end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=0)
+            # Active Window 9AM to 9PM
+            if 9 <= now.hour < 21:
+                # Calculate seconds from now until 09:59:59 PM
+                end_of_day = now.replace(hour=20, minute=59, second=59, microsecond=0)
                 seconds_left = (end_of_day - now).total_seconds()
 
                 # Pick a random second in the day
@@ -284,10 +284,7 @@ async def spawn_golden_button() -> None:
                     view.message = message
                     log("Golden Button has been spawned.", "SUCCESS")
                 else:
-                    log(
-                        f"Channel {aura_manager.CHANNEL_ID} not found for Golden Button.",
-                        "ERROR",
-                    )
+                    log(f"Channel {aura_manager.CHANNEL_ID} not found for Golden Button.","ERROR")
 
                 # Sleep untill 9am
                 tomorrow_9am = (now + dt.timedelta(days=1)).replace(
@@ -299,6 +296,9 @@ async def spawn_golden_button() -> None:
                     f"Button cycle finished. Resetting at 9 AM tomorrow.", "GOLD_BUTTON"
                 )
                 await asyncio.sleep(max(0, sleep_until_reset))
+
+                bot.nextGoldenSpawn = None
+                bot.userClicked = None
 
             # If it's 12 AM - 8:59 AM wait until 9 AM
             else:
