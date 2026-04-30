@@ -264,7 +264,7 @@ async def spawn_golden_button() -> None:
                 seconds_left = (end_of_day - now).total_seconds()
 
                 # Pick a random second in the day
-                wait_time = 3#random.uniform(0, max(0, seconds_left))
+                wait_time = random.uniform(0, max(0, seconds_left))
                 scheduled_for = now + dt.timedelta(seconds=wait_time)
                 bot.nextGoldenSpawn = scheduled_for
 
