@@ -499,9 +499,9 @@ async def gb(ctx: commands.Context) -> None:
         )
     else:
         if userClicked == None:
-            return await ctx.send(f"The Golden Button Already Spanwed Today But Nobody Pressed It...")
+            return await ctx.send(f"The Golden Button Already Spanwed Today But Nobody Pressed It... \nTime Spawned > `{spawnTime.strftime("%I:%M:%S %p")}`")
         else:
-            return await ctx.send(f"{ctx.author.mention} > The Golden Button Has Already Spawned Today!\nClicked By > `{userClicked}`")
+            return await ctx.send(f"{ctx.author.mention} > The Golden Button Has Already Spawned Today!\nClicked By > `{userClicked}` | Time Spanwed > `{spawnTime.strftime("%I:%M:%S %p")}`")
 
 
 @bot.command()
