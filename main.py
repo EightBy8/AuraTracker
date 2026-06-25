@@ -29,6 +29,7 @@ save_json(HISTORY_FILE, history)
 import modules.commands  # noqa: E402,F401
 import modules.events  # noqa: E402,F401
 import modules.games
+import modules.fishing  # noqa: E402,F401
 
 
 async def setup_hook():

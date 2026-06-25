@@ -242,25 +242,6 @@ async def bank(ctx: commands.Context) -> None:
     )
 
 
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-# OLD LEADERBOARD EMBED, WONT WORK WITH OVER 20 MEMBERS
-
-# async def lb(ctx: commands.Context) -> None:
-#     if not aura_manager.aura_data:
-#         await ctx.send("No aura yet!")
-#         return
-#
-#     sorted_aura = sorted(aura_manager.aura_data.items(), key=lambda x: x[1], reverse=True)
-#     embed = Embed(title="Aura Leaderboard", description="--------------------------------------",color=discord.Color(0x32CD32), )
-#     for rank, (uid, score) in enumerate(sorted_aura, start=1):
-#         user = await bot.fetch_user(int(uid))
-#         prefix = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, str(rank))
-#         embed.add_field(name=f"{prefix} > {user.name.capitalize()}", value=f"Aura: {score}", inline=False)
-#     await ctx.send(embed=embed)
-#     log("Leaderboard shown", "INFO")
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
 @bot.command(name="leaderboard")
 async def leaderboard_alias(ctx: commands.Context) -> None:
     await ctx.send("Command moved to -> '?lb'")
@@ -354,10 +335,10 @@ async def modify_aura(
     new_val = aura_manager.aura_data.get(str(member.id), 0)
     if amount > 0:
         await ctx.send("Modifying Aura...")
-        await ctx.send(f"{member.mention} > New Balance: `{amount} Aura`")
+        await ctx.send(f"{member.mention} > New Balance: `{new_val:,} Aura`")
     else:
         await ctx.send("Modifying Aura...")
-        await ctx.send(f"{member.mention} > New Balance: `{amount} Aura`")
+        await ctx.send(f"{member.mention} > New Balance: `{new_val:,} Aura`")
     log(f"{ctx.author} modified aura for {member} by {amount}", "INFO")
 
 
@@ -538,31 +519,87 @@ async def spawnGoldenButton(ctx: commands.Context) -> None:
     )
 
 
+HELP_PAGES = {
+    "👤 General": {
+        "color": 0x6DAB18,
+        "fields": [
+            ("Aura",        "`?aura [@member]` — Check aura balance"),
+            ("Winstreak",   "`?winstreak [@member]` — Check win streak"),
+            ("Give Aura",   "`?give_aura @member <amount|all|half>` — Send aura"),
+            ("Bank",        "`?bank` — Check the house bank balance"),
+            ("Leaderboards","**`?lb`** Global · **`?slb`** Simp · **`?dslb`** Dicksuck"),
+            ("Daily LB",    "`?dailylb` — Countdown to next daily post"),
+            ("Golden Button","`?gb` — Check if today's golden button spawned"),
+        ],
+    },
+    "🎮 Games": {
+        "color": 0x9B59B6,
+        "fields": [
+            ("Coinflip",      "`?coinflip <amount|all|half>` — alias `?cf`"),
+            ("Blackjack",     "`?blackjack <amount|all|half>` — alias `?bj`"),
+            ("Higher/Lower",  "`?higherlower <amount|all|half>` — alias `?hl` (min 5)"),
+            ("RPS vs House",  "`?rps <amount|all|half>`"),
+            ("RPS vs Friend", "`?rps @member <amount>` — Challenge someone"),
+        ],
+    },
+    "🎣 Fishing": {
+        "color": 0x1E90FF,
+        "fields": [
+            ("Cast",      "`?fish` / `?cast` — Cast your line"),
+            ("Inventory", "`?inventory [@member]` / `?inv` — View fish tank"),
+            ("Sell",      "`?sell all` or `?sell <#>` — Cash out fish"),
+            ("Pin/Unpin", "`?pin <#>` / `?unpin <#>` — Protect fish from sell all"),
+            ("Aquarium",  "`?aquarium [@member]` — View pinned showcase"),
+            ("Fishpedia", "`?fishpedia [@member]` — Collection progress & stats"),
+            ("Trade",     "`?trade @member <your #> <their # | 0>` — 0 = free gift"),
+        ],
+    },
+    "🛡️ Officers": {
+        "color": 0xE74C3C,
+        "fields": [
+            ("Set Aura",     "`?set_aura @member <amount>`"),
+            ("Reset Aura",   "`?reset_aura @member`"),
+            ("Modify Aura",  "`?modify_aura @member <amount>`"),
+            ("Set Channel",  "`?set_channel` — Daily LB channel"),
+            ("Officers",     "`?add_officer @member` / `?remove_officer @member`"),
+            ("Buttons",      "`?spawnButton [count]` / `?spawnGoldenButton`"),
+            ("Remove Fish",  "`?remove_fish @member <#>` — Remove a fish from someone"),
+            ("Testing",      "`?test_daily` / `?fish_boss`"),
+        ],
+    },
+}
+
+class HelpView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=120)
+        self.current = "👤 General"
+        self.add_item(HelpSelect())
+
+    def build_embed(self) -> discord.Embed:
+        page = HELP_PAGES[self.current]
+        embed = discord.Embed(
+            title=f"{self.current} Commands",
+            color=page["color"],
+        )
+        for name, value in page["fields"]:
+            embed.add_field(name=name, value=value, inline=False)
+        embed.set_footer(text="Use the dropdown to switch categories.")
+        return embed
+
+
+class HelpSelect(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label=key, emoji=key.split()[0]) for key in HELP_PAGES
+        ]
+        super().__init__(placeholder="Choose a category...", options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        self.view.current = self.values[0]
+        await interaction.response.edit_message(embed=self.view.build_embed(), view=self.view)
+
+
 @bot.command()
 async def help(ctx: commands.Context) -> None:
-    help_text = """        
-        **User:**
-        - `?aura [member]` - Check aura balance
-        - `?give_aura [member] [amount | "all", "half"]` - Send aura to another user
-        - `?lb` - Shows global leaderboard
-        - `?slb` - Shows who gives the most positive aura
-        - `?dslb` - Shows who gives the most negative aura
-        - `?dailylb` - Shows countdown for next daily leaderboard post
-
-        **Games:**
-        - `?coinflip`, `?cf [amount | "all", "half"]` - Play a coinflip game
-        - `?blackjack`, `?bj [amount | "all", "half"]` - Play a blackjack game
-        - `?higherlower`, `?hl [amount | "all", "half"]` - Play a higher/lower game (Min 10)
-        - `?rps` `[@member] [amount]` | Challenge a friend to rock paper scissors
-        - `?rps` `[amount]` | Challenge the house to rock paper scissors
-
-        **Aura Officer Commands:**
-        - `?set_aura [member] [amount]` - Set a user's absolute aura
-        - `?reset_aura [member]` - Reset a user's aura to 0
-        - `?modify_aura [member] [amount]` - Add/subtract from current aura
-        - `?set_channel` - Sets the channel for daily leaderboards
-        - `?add_officer [member]` - Adds user to the aura officer list
-        
-        *Note: Use "all" or "half" for quick betting.*
-    """
-    await ctx.send(inspect.cleandoc(help_text))
+    view = HelpView()
+    await ctx.send(embed=view.build_embed(), view=view)

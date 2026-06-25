@@ -1,0 +1,152 @@
+{
+    "109482185949446144": [
+        {
+            "id": "be7079a3",
+            "type": "Trout",
+            "size": "Small",
+            "weight": 4,
+            "color": "Silver",
+            "features": [
+                "Extra Fins"
+            ],
+            "rarity": "Uncommon",
+            "emoji": "\ud83d\udc20",
+            "value": 7,
+            "pinned": true,
+            "isBossFish": false
+        },
+        {
+            "type": "Grandpa Bass",
+            "size": "Huge",
+            "weight": 847,
+            "color": "Mossy Green",
+            "features": [
+                "Battle Scars",
+                "Big Eyes",
+                "Metallic Sheen"
+            ],
+            "rarity": "BOSS",
+            "emoji": "\ud83d\udc74",
+            "value": 15,
+            "pinned": false,
+            "isBossFish": true
+        },
+        {
+            "id": "217d23e0",
+            "type": "Blizzy Carp",
+            "size": "Legendary",
+            "weight": 57,
+            "color": "Blue",
+            "features": [
+                "Striped Pattern",
+                "Glows in the Dark",
+                "Spotted Pattern"
+            ],
+            "rarity": "ADMIN",
+            "emoji": "\ud83d\udc51",
+            "value": 15,
+            "pinned": false,
+            "isBossFish": false,
+            "isAdminFish": true
+        }
+    ],
+    "464434138661912577": [
+        {
+            "id": "11a76bfb",
+            "type": "Salmon",
+            "size": "Small",
+            "weight": 4,
+            "color": "Silver",
+            "features": [
+                "Glows in the Dark"
+            ],
+            "rarity": "Uncommon",
+            "emoji": "\ud83d\udc20",
+            "value": 10,
+            "pinned": false,
+            "isBossFish": false
+        },
+        {
+            "id": "3810262d",
+            "type": "Catfish",
+            "size": "Legendary",
+            "weight": 90,
+            "color": "Brown",
+            "features": [
+                "Two-Headed"
+            ],
+            "rarity": "Uncommon",
+            "emoji": "\ud83d\udc20",
+            "value": 35,
+            "pinned": false,
+            "isBossFish": false
+        },
+        {
+            "id": "217d23e0",
+            "type": "Blizzy Carp",
+            "size": "Legendary",
+            "weight": 57,
+            "color": "Blue",
+            "features": [
+                "Striped Pattern",
+                "Glows in the Dark",
+                "Spotted Pattern"
+            ],
+            "rarity": "ADMIN",
+            "emoji": "\ud83d\udc51",
+            "value": 15,
+            "pinned": false,
+            "isBossFish": false,
+            "isAdminFish": true
+        }
+    ],
+    "286262939202224128": [
+        {
+            "id": "06d7bc69",
+            "type": "Salmon",
+            "size": "Huge",
+            "weight": 33,
+            "color": "Dark Green",
+            "features": [],
+            "rarity": "Common",
+            "emoji": "\ud83d\udc1f",
+            "value": 17,
+            "pinned": false,
+            "isBossFish": false
+        },
+        {
+            "id": "217d23e0",
+            "type": "Blizzy Carp",
+            "size": "Legendary",
+            "weight": 57,
+            "color": "Blue",
+            "features": [
+                "Striped Pattern",
+                "Glows in the Dark",
+                "Spotted Pattern"
+            ],
+            "rarity": "ADMIN",
+            "emoji": "\ud83d\udc51",
+            "value": 15,
+            "pinned": false,
+            "isBossFish": false,
+            "isAdminFish": true
+        }
+    ],
+    "757755072242384977": [
+        {
+            "id": "657a7203",
+            "type": "Trout",
+            "size": "Legendary",
+            "weight": 97,
+            "color": "Golden",
+            "features": [],
+            "rarity": "Uncommon",
+            "emoji": "\ud83d\udc20",
+            "value": 36,
+            "pinned": true,
+            "isBossFish": false
+        }
+    ],
+    "187365945327616000": []
+}

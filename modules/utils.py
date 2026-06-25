@@ -15,7 +15,7 @@ def log(message: str, level: str = "INFO") -> None:
         "CF_INFO":     Fore.CYAN,       # Coinflip Messages
         "BJ_INFO":     Fore.CYAN,       # Blackjack Messages
         "HL_INFO":     Fore.CYAN,       # Higher/Lower start messages
-        "BUTTON_INFO": Fore.CYAN,       # Random Button Messages 
+        "BUTTON_INFO": Fore.CYAN,       # Random Button Messages
         "ERROR":       Fore.RED,        # Errors
         "SUCCESS":     Fore.GREEN,      # Successful operations
         "WARNING":     Fore.YELLOW,     # Warnings
@@ -23,13 +23,13 @@ def log(message: str, level: str = "INFO") -> None:
         "LEADERBOARD": Fore.BLUE,       # Leaderboard messages
         "COINFLIP":    Fore.MAGENTA,    # Coinflip Messages
         "BLACKJACK":   Fore.MAGENTA,    # Blackjack Messages
-        "BUTTON":      Fore.MAGENTA,    # Random Button Messages 
+        "BUTTON":      Fore.MAGENTA,    # Random Button Messages
         "HIGHERLOWER": Fore.MAGENTA,    # Higher/Lower outcome messages
         "GOLD_BUTTON": Fore.YELLOW,     # Golden Button Messages
-        "RPS":         Fore.MAGENTA,       # Rock Paper Scissors against bot
-        "RPS_DUEL":    Fore.MAGENTA        # Rock Paper Scissors PvP
-
-    }    
+        "RPS":         Fore.MAGENTA,    # Rock Paper Scissors against bot
+        "RPS_DUEL":    Fore.MAGENTA,    # Rock Paper Scissors PvP
+        "FISHING":     Fore.BLUE,       # Fishing game messages
+    }
     color = colors.get(level, "")
     print(color + f"[{timestamp}] [{level}] {message}")
 
