@@ -342,6 +342,7 @@ class RequestAuraEmbed(discord.ui.View):
         if self.message:
             try:
                 await self.message.edit(content="**Request Expired:** No response in time.", view=self)
+                aura_manager.unlockUser(str(self.author.id), self.author.name)
             except discord.HTTPException:
                 pass
 
