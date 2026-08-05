@@ -22,6 +22,7 @@ def load_config() -> None:
                 data = json.load(f)
                 aura_manager.CHANNEL_ID = data.get("channel_id")
                 aura_manager.OWNER_IDS = [int(x) for x in data.get("owner_id", [])]
+                aura_manager.RESET_DAY = data.get("reset_day", 1)
                 log(
                     f"Loaded CHANNEL_ID = {aura_manager.CHANNEL_ID}",
                     "SUCCESS" if aura_manager.CHANNEL_ID else "WARNING",
@@ -29,6 +30,10 @@ def load_config() -> None:
                 log(
                     f"Loaded OWNER_IDS = {aura_manager.OWNER_IDS}",
                     "SUCCESS" if aura_manager.OWNER_IDS else "WARNING",
+                )
+                log(
+                    f"Loaded RESET_DAY = {aura_manager.RESET_DAY}",
+                    "SUCCESS",
                 )
         except Exception as e:
             log(f"Failed to load config.json: {e}", "ERROR")
@@ -39,11 +44,12 @@ def save_config() -> None:
     data = {
         "channel_id": aura_manager.CHANNEL_ID,
         "owner_id": list(aura_manager.OWNER_IDS),
+        "reset_day": aura_manager.RESET_DAY,
     }
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
     log(
-        f"Saved CHANNEL_ID = {aura_manager.CHANNEL_ID} and OWNER_IDs = {aura_manager.OWNER_IDS}",
+        f"Saved CHANNEL_ID = {aura_manager.CHANNEL_ID}, OWNER_IDs = {aura_manager.OWNER_IDS}, and RESET_DAY = {aura_manager.RESET_DAY}",
         "SUCCESS",
     )
 
@@ -58,6 +64,7 @@ async def daily_aura_snapshot() -> None:
 
     while not bot.is_closed():
         wait_seconds: float = seconds_until(9, 29)
+        #wait_seconds: float = 5 # FOR TESTING
         hours, minutes, seconds = (
             int(wait_seconds // 3600),
             int((wait_seconds % 3600) // 60),
@@ -91,6 +98,12 @@ async def daily_leaderboard_data() -> list[str] | str:
 
     if len(dates) < 2:
         return "Not enough data for daily leaderboard!"
+
+    # Check if the aura key exists in history entries
+    if "aura" not in history[dates[-2]]:
+        return "Yesterday's aura data is missing!"
+    if "aura" not in history[dates[-1]]:
+        return "Today's aura data is missing!"
 
     yesterday: dict[str, int] = history[dates[-2]]["aura"]
     today: dict[str, int] = history[dates[-1]]["aura"]
@@ -154,7 +167,7 @@ async def post_daily_leaderboard() -> None:
 
     while not bot.is_closed():
         wait_seconds: float = seconds_until(9, 30)
-        # wait_seconds: float = 10
+        # wait_seconds: float = 10 # TESTING
         hours, minutes, seconds = (
             int(wait_seconds // 3600),
             int((wait_seconds % 3600) // 60),
@@ -249,68 +262,153 @@ async def spawn_aura_button() -> None:
         except Exception as e:
             log(f"Error during random aura spawn: {e}", "ERROR")
 
-
 async def spawn_golden_button() -> None:
-    await bot.wait_until_ready()  # Wait for bot to login
+    await bot.wait_until_ready()
 
     try:
         while not bot.is_closed():
             now = dt.datetime.now()
 
-            # Active Window 9AM to 9PM
+            # Active Window 9 AM to 9 PM
             if 9 <= now.hour < 21:
-                # Calculate seconds from now until 09:59:59 PM
-                end_of_day = now.replace(hour=20, minute=59, second=59, microsecond=0)
-                seconds_left = (end_of_day - now).total_seconds()
+                endOfDay = now.replace(hour=20, minute=59, second=59, microsecond=0)
+                secondsLeft = (endOfDay - now).total_seconds()
 
-                # Pick a random second in the day
-                wait_time = random.uniform(0, max(0, seconds_left))
-                scheduled_for = now + dt.timedelta(seconds=wait_time)
-                bot.nextGoldenSpawn = scheduled_for
+                waitTime = random.uniform(0, max(0, secondsLeft))                
+                #waitTime = 5
+                scheduledFor = now + dt.timedelta(seconds=waitTime)
+                bot.nextGoldenSpawn = scheduledFor
 
                 log(
-                    f"Golden Button scheduled for {scheduled_for.strftime('%I:%M %p')}",
+                    f"Golden Button scheduled for {scheduledFor.strftime('%I:%M %p')}",
                     "GOLD_BUTTON",
                 )
-                await asyncio.sleep(wait_time)
+                await asyncio.sleep(waitTime)
 
-                # --- SPAWN LOGIC ---
+                # --- SPAWN LOGIC --
+                
                 channel = bot.get_channel(aura_manager.CHANNEL_ID)
                 if channel:
                     view = goldenButtonEmbed()
-                    message = await channel.send(
-                        "**A Golden Button has appeared!**", view=view
-                    )
+                    
+                    unclaimedStreak = aura_manager.getGoldenStreak()
+                    baseAmount = 40
+                    currentValue = baseAmount * unclaimedStreak
+
+                    messageText = "**A Golden Button has appeared!**"
+                    if unclaimedStreak > 1:
+                        messageText += f" **Worth `{currentValue:,}` Aura**!"
+
+                    message = await channel.send(messageText, view=view)
                     view.message = message
                     log("Golden Button has been spawned.", "SUCCESS")
                 else:
-                    log(f"Channel {aura_manager.CHANNEL_ID} not found for Golden Button.","ERROR")
+                    log(f"Channel {aura_manager.CHANNEL_ID} not found for Golden Button.", "ERROR")
 
-                # Sleep untill 9am
-                tomorrow_9am = (now + dt.timedelta(days=1)).replace(
+                # --- SLEEP UNTIL 9:00 AM TOMORROW ---
+                currentTime = dt.datetime.now()
+                tomorrowNineAM = (currentTime + dt.timedelta(days=1)).replace(
                     hour=9, minute=0, second=0, microsecond=0
                 )
-                sleep_until_reset = (tomorrow_9am - dt.datetime.now()).total_seconds()
+                sleepUntilReset = (tomorrowNineAM - currentTime).total_seconds()
 
                 log(
-                    f"Button cycle finished. Resetting at 9 AM tomorrow.", "GOLD_BUTTON"
+                    "Button cycle finished. Resetting at 9 AM tomorrow.", "GOLD_BUTTON"
                 )
-                await asyncio.sleep(max(0, sleep_until_reset))
+                await asyncio.sleep(max(0, sleepUntilReset))
 
+                # --- 9:00 AM ROLE REMOVAL & RESET LOGIC ---
                 bot.nextGoldenSpawn = None
                 bot.userClicked = None
 
-            # If it's 12 AM - 8:59 AM wait until 9 AM
+                roleId = aura_manager.get_golden_role_id()
+                if roleId and channel and channel.guild:
+                    guild = channel.guild
+                    role = guild.get_role(roleId)
+                    if role:
+                        for member in role.members:
+                            try:
+                                await member.remove_roles(role, reason="Golden Button role expired at 9:00 AM reset")
+                                log(f"Removed Golden Role from {member.name}", "GOLD_BUTTON")
+                            except discord.Forbidden:
+                                log("Missing permissions to remove Golden Role.", "ERROR")
+                            except discord.HTTPException as e:
+                                log(f"Failed to remove Golden Role: {e}", "ERROR")
+
+            # Outside spawn hours (12 AM - 8:59 AM)
             else:
-                target_9am = now.replace(hour=9, minute=0, second=0, microsecond=0)
-                if now.hour >= 9:  # Safety for edge cases
-                    target_9am += dt.timedelta(days=1)
+                targetNineAM = now.replace(hour=9, minute=0, second=0, microsecond=0)
+                if now.hour >= 21:
+                    targetNineAM += dt.timedelta(days=1)
 
-                wait_until_9 = (target_9am - now).total_seconds()
-                log(f"Outside spawn hours. Waiting until 9 AM...", "GOLD_BUTTON")
-                await asyncio.sleep(max(0, wait_until_9))
-
+                waitUntilNine = (targetNineAM - now).total_seconds()
+                log("Outside spawn hours. Waiting until 9 AM...", "GOLD_BUTTON")
+                await asyncio.sleep(max(0, waitUntilNine))
     except Exception as e:
         log(f"Error in spawn_golden_button: {e}", "ERROR")
         await asyncio.sleep(60)
 
+async def checkMonthlyReset() -> None:
+    """Checks daily if today's day matches the configured reset day."""
+    await bot.wait_until_ready()
+
+    while not bot.is_closed():
+        now = dt.datetime.now()
+
+        # Reload config in case it was updated via command
+        load_config()
+        resetDay = aura_manager.RESET_DAY
+
+        if now.day == resetDay:
+            log(f"Monthly reset day {resetDay} reached. Resetting aura balances.", "INFO")
+            aura_manager.resetAllAura()
+
+
+            # Send Message 
+            if aura_manager.CHANNEL_ID is not None:
+                channel = bot.get_channel(aura_manager.CHANNEL_ID)
+                if channel is not None:
+                    try:
+                        await channel.send("AURA HAS BEEN RESET FOR THE MONTH")
+                    except Exception as e:
+                        log(f"Failed to send monthly reset announcement: {e}", "ERROR")
+            
+            # Sleep until tomorrow after the reset to avoid resetting again the same day
+            nextDay = (now + dt.timedelta(days=1)).replace(
+                hour=0, minute=5, second=0, microsecond=0
+            )
+            await asyncio.sleep((nextDay - dt.datetime.now()).total_seconds())
+        else:
+            # Calculate the next reset date and how many days remain
+            todayDate = now.date()
+            if todayDate.day < resetDay:
+                nextResetDate = todayDate.replace(day=resetDay)
+            else:
+                nextMonth = todayDate.month + 1 if todayDate.month < 12 else 1
+                nextYear = todayDate.year if todayDate.month < 12 else todayDate.year + 1
+                nextResetDate = todayDate.replace(year=nextYear, month=nextMonth, day=resetDay)
+
+            daysRemaining = (nextResetDate - todayDate).days
+            log(
+                f"Monthly reset in {daysRemaining} day(s) on {nextResetDate.isoformat()}",
+                "INFO",
+            )
+
+            if daysRemaining == 1:
+                if aura_manager.CHANNEL_ID is not None:
+                    channel = bot.get_channel(aura_manager.CHANNEL_ID)
+                    if channel is not None:
+                        try:
+                            await channel.send(f"Reminder: Aura will be reset TOMORROW!")
+                            log(f"Sent monthly reset reminder for  XXXX-XX-{resetDay}.", "INFO")
+                        except Exception as e:
+                            log(f"Failed to send monthly reset reminder: {e}","ERROR",)
+                    else:
+                        log(f"Monthly reset reminder channel {aura_manager.CHANNEL_ID} not found.","WARNING")
+                else:
+                    log("Monthly reset reminder skipped because CHANNEL_ID is not set.","WARNING")
+
+            # Wait until 9:30 and check again
+            tomorrow = now + dt.timedelta(days=1)
+            nextCheck = tomorrow.replace(hour=9, minute=30, second=0, microsecond=0)
+            await asyncio.sleep((nextCheck - dt.datetime.now()).total_seconds())

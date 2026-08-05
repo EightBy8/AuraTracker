@@ -1,5 +1,4 @@
 # modules/commands.py
-
 from discord.ext import commands
 from datetime import datetime
 import discord
@@ -7,11 +6,13 @@ import json
 import inspect
 import os
 from modules.bot_setup import bot
-from modules.daily_tasks import save_config, load_config
+import modules.daily_tasks as daily_tasks 
+from modules.daily_tasks import save_config
 from modules import aura_manager
 from modules.utils import log, seconds_until
-from modules.ui import leaderboardEmbed, randomButton, goldenButtonEmbed
+from modules.ui import leaderboardEmbed, randomButton, goldenButtonEmbed, RequestAuraEmbed
 from discord import Embed
+import modules.aura_manager as aura_manager
 
 # Path to auraCount.json
 AURA_COUNT_FILE = os.path.join("data", "auraCount.json")
@@ -245,7 +246,59 @@ async def bank(ctx: commands.Context) -> None:
 @bot.command(name="leaderboard")
 async def leaderboard_alias(ctx: commands.Context) -> None:
     await ctx.send("Command moved to -> '?lb'")
+    
+@bot.command(name="request_aura")
+async def request_aura(ctx: commands.Context, member: discord.Member, amount: str) -> None:
+    giverId = str(member.id)
+    receiverId = str(ctx.author.id)
 
+    # Basic self-check
+    if ctx.author.id == member.id:
+        await ctx.send("You can't request aura from yourself lil bro.")
+        return
+
+    # Check if either user is locked in a game or pending transaction
+    if aura_manager.isBusy(receiverId):
+        await ctx.send("You are currently busy in a game or pending request!")
+        return
+    if aura_manager.isBusy(giverId):
+        await ctx.send("That user is currently busy in a game or pending request!")
+        return
+
+    giverAura = aura_manager.aura_data.get(giverId, 0)
+
+    # Parse 'all', 'half', or integer input
+    amountStr = amount.lower()
+    if amountStr == "all":
+        parsedAmount = giverAura
+    elif amountStr == "half":
+        parsedAmount = giverAura // 2
+    else:
+        try:
+            parsedAmount = int(amount)
+        except ValueError:
+            await ctx.send("Please enter a valid number, 'all', or 'half'.")
+            return
+
+    # Amount validation
+    if parsedAmount <= 0:
+        await ctx.send("You must request a positive amount of aura!")
+        return
+
+    if parsedAmount > giverAura:
+        await ctx.send(f"{member.display_name} only has `{giverAura}` Aura!")
+        return
+
+    # Lock both users with their matching IDs and names
+    aura_manager.lockUser(receiverId, ctx.author.name)
+
+    # Send request view
+    view = RequestAuraEmbed(author=ctx.author, reqUser=member, amount=parsedAmount)
+    msg = await ctx.send(
+        f"{member.mention}, `{ctx.author.display_name}` is requesting `{parsedAmount}` Aura from you!",
+        view=view
+    )
+    view.message = msg
 
 @bot.command()
 async def give_aura(ctx: commands.Context, member: discord.Member, amount: str) -> None:
@@ -468,7 +521,8 @@ async def gb(ctx: commands.Context) -> None:
         userClicked = None
 
     now = datetime.now()
-    
+    streak = aura_manager.getGoldenStreak()
+
     if spawnTime is None:
         return await ctx.send(
             f"{ctx.author.mention} > The system is still calculating today's Impact event. Try again shortly."
@@ -476,11 +530,11 @@ async def gb(ctx: commands.Context) -> None:
 
     if now < spawnTime:
         return await ctx.send(
-            f"{ctx.author.mention} > The Golden Button Has Not Spawned Today!"
+                f"{ctx.author.mention} > The Golden Button Has Not Spawned Today!\n Unclaimsted Streak: `x{streak}`"
         )
     else:
         if userClicked == None:
-            return await ctx.send(f"The Golden Button Already Spanwed Today But Nobody Pressed It... \nTime Spawned > `{spawnTime.strftime('%I:%M %p')}`")
+            return await ctx.send(f"The golden button spawned today, but nobody pressed it... \nTime Spawned > `{spawnTime.strftime('%I:%M %p')}` \n Unclaimsted Streak: `x{streak}` ")
         else:
             return await ctx.send(f"{ctx.author.mention} > The Golden Button Has Already Spawned Today!\nClicked By > `{userClicked}` | Time Spawned > `{spawnTime.strftime('%I:%M %p')}`")
 
@@ -517,6 +571,42 @@ async def spawnGoldenButton(ctx: commands.Context) -> None:
         f"{ctx.author.display_name} spawned a golden button through command",
         "GOLD_BUTTON",
     )
+
+@bot.command()
+async def setResetDate(ctx: commands.Context, day: int) -> None:
+    if ctx.author.id != ctx.guild.owner_id:
+        await ctx.send("Only the server owner can do this.")
+        return
+
+    if not (1 <= day <= 28):
+        await ctx.send("Please choose a day between **1** and **28**.")
+        return
+
+    # Save to config
+    aura_manager.RESET_DAY = day
+    save_config()
+
+    log(f"Reset day changed to day {day} of the month by {ctx.author.display_name}", "INFO")
+    await ctx.send(f"{ctx.author.mention}> Monthly Aura Reset Date: `{day}`.")
+
+@bot.command()
+async def resetAllAura(ctx: commands.Context) -> None:
+    if ctx.author.id not in aura_manager.OWNER_IDS:
+        return await ctx.send("You do not have permission to reset all aura.")
+
+    aura_manager.resetAllAura()
+    await ctx.send(f"{ctx.author.mention}> All user's aura have been reset.")
+    log(f"{ctx.author.display_name} performed a full aura reset", "INFO")
+
+@bot.command(name="set_golden_role", aliases=["setgoldenrole", "setrole"])
+@commands.has_permissions(manage_roles=True)
+async def set_golden_role(ctx: commands.Context, role: discord.Role) -> None:
+    """Set the role awarded to the user who claims the Golden Button.
+    Usage: ?set_golden_role @Role
+    """
+    aura_manager.set_golden_role_id(role.id)
+    await ctx.send(f"Golden Button role updated to {role.mention}!")
+
 
 
 HELP_PAGES = {
@@ -567,6 +657,15 @@ HELP_PAGES = {
             ("Testing",      "`?test_daily` / `?fish_boss`"),
         ],
     },
+
+    "👑 Server Owner": {
+        "color": 0xFBD028,
+        "fields": [
+            ("Set Aura Reset Date",     "`?setResetDate`"),
+            ("Reset all user's aura",   "`?resetAllAura`"),
+            ("Set the role for the Golden Button Press",     "`?set_golden_role`"),
+        ]
+    }
 }
 
 class HelpView(discord.ui.View):
@@ -598,8 +697,8 @@ class HelpSelect(discord.ui.Select):
         self.view.current = self.values[0]
         await interaction.response.edit_message(embed=self.view.build_embed(), view=self.view)
 
-
 @bot.command()
 async def help(ctx: commands.Context) -> None:
     view = HelpView()
     await ctx.send(embed=view.build_embed(), view=view)
+

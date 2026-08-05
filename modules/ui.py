@@ -3,6 +3,7 @@ import json
 import os
 import random
 from modules import bot_setup
+from modules import aura_manager
 from modules.utils import log
 from modules.aura_manager import isBusy, lockUser, unlockUser, update_aura, aura_data
 
@@ -150,7 +151,7 @@ class randomButton(discord.ui.View):
         update_aura(interaction.user.id, auraChange, user_obj=interaction.user)
 
         # Get new balance
-        new_balance = aura_data.get(str(interaction.user.id), 0)
+        newBalance = aura_data.get(str(interaction.user.id), 0)
 
         # Edit original message
         if hasattr(self, 'message') and self.message:
@@ -160,7 +161,7 @@ class randomButton(discord.ui.View):
                 pass
 
         # Send a new message with the result
-        await interaction.channel.send(f"{msg}\n> New Balance: `{new_balance:,} Aura`")
+        await interaction.channel.send(f"{msg}\n> New Balance: `{newBalance:,} Aura`")
 
         # Stop the view to clean up
         self.stop()
@@ -186,31 +187,54 @@ class goldenButtonEmbed(discord.ui.View):
         self.clicked = True
         interaction.client.userClicked = interaction.user.display_name
 
-        #Update aura
-        amount = 40
+        # Calculate scaled reward based on unclaimed days streak
+        unclaimedDays = aura_manager.getGoldenStreak()
+        baseAmount = 40
+        amount = baseAmount * unclaimedDays
+
+        # --- GIVE GOLDEN ROLE ---
+        roleMsg = ""
+        roleId = aura_manager.get_golden_role_id()
+        if roleId and interaction.guild:
+            role = interaction.guild.get_role(roleId)
+            if role:
+                try:
+                    await interaction.user.add_roles(role, reason="Claimed Golden Button")
+                    roleMsg = f" and received the **{role.name}** role!"
+                    log(f"Gave Golden Role to {interaction.user.display_name}", "GOLD_BUTTON")
+                except discord.Forbidden:
+                    log("Missing permissions to give Golden Role. Check role hierarchy!", "ERROR")
+                except discord.HTTPException as e:
+                    log(f"Failed to give Golden Role: {e}", "ERROR")
+
+        # Update balance & reset streak
         update_aura(interaction.user.id, amount, user_obj=interaction.user)
+        aura_manager.resetGoldenStreak()
 
-        # Get new balance
-        new_balance = aura_data.get(str(interaction.user.id), 0)
+        newBalance = aura_data.get(str(interaction.user.id), 0)
 
-
-        # Edit original message
+        # Remove original button message
         if hasattr(self, 'message') and self.message:
             try:
                 await self.message.delete()
             except discord.NotFound:
                 pass
-        await interaction.channel.send(f"{interaction.user.mention} Pressed the golden button and gained `+{amount}` Aura!\n> New Balance: `{new_balance:,} Aura`")
-        log(f"{interaction.user.display_name} Pressed the gold button", "GOLD_BUTTON")
 
-        # Stop the view to clean up
+        await interaction.channel.send(
+            f"{interaction.user.mention} Pressed the golden button and gained `+{amount:,}` Aura!{roleMsg}\n> New Balance: `{newBalance:,} Aura`"
+        )
+        log(f"{interaction.user.display_name} pressed the gold button for {amount} Aura (x{unclaimedDays} streak)", "GOLD_BUTTON")
+
         self.stop()
 
     async def on_timeout(self):
-        if self.message:
+        aura_manager.incrementGoldenStreak()
+        currentStreak = aura_manager.getGoldenStreak()
+
+        if hasattr(self, 'message') and self.message:
             try:
                 await self.message.delete()
-                log("Golden Button timed out and was removed.", "GOLD_BUTTON")
+                log(f"Golden Button timed out unclaimed. | STREAK: x{currentStreak}.", "GOLD_BUTTON")
             except discord.NotFound:
                 pass
             except Exception as e:
@@ -300,6 +324,90 @@ class rpsChallengeEmbed(discord.ui.View):
         self.accepted = False
         await interaction.response.send_message(f"{interaction.user.mention} Declined the duel.", ephemeral=False)
         self.stop()
+
+# Request Aura Embed
+class RequestAuraEmbed(discord.ui.View):
+    def __init__(self, author: discord.User, reqUser: discord.User, amount: int):
+        super().__init__(timeout=60)
+        self.author = author      # Person requesting aura
+        self.reqUser = reqUser    # Person being asked for aura
+        self.amount = amount
+        self.message: discord.Message | None = None
+
+    async def on_timeout(self) -> None:
+        """Disable buttons and mark request as expired after 60 seconds."""
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                item.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(content="**Request Expired:** No response in time.", view=self)
+            except discord.HTTPException:
+                pass
+
+    @discord.ui.button(label="Accept", style=discord.ButtonStyle.green)
+    async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.reqUser.id:
+            return await interaction.response.send_message("This request isn't for you lil bro..", ephemeral=True)
+
+        # Double check sender's balance at the time of click
+        giverBalance = aura_data.get(str(self.reqUser.id), 0)
+        if giverBalance < self.amount:
+            return await interaction.response.send_message(
+                f"You don't have enough aura to  this request! (Current balance: `{giverBalance}`)",
+                ephemeral=True
+            )
+
+        # Execute balance update
+        update_aura(self.reqUser.id, -self.amount, user_obj=self.reqUser)
+        update_aura(self.author.id, self.amount, user_obj=self.author)
+
+        aura_manager.unlockUser(str(self.author.id), self.author.name)
+
+        # Disable buttons
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                item.disabled = True
+
+        await interaction.response.edit_message(
+            content=f"**Request Accepted!** {self.reqUser.mention} sent `{self.amount}` Aura to {self.author.mention}.",
+            view=self
+        )
+        self.stop()
+
+    @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
+    async def decline(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.reqUser.id:
+            return await interaction.response.send_message("This request isn't for you lil bro..", ephemeral=True)
+
+        # Disable buttons
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                item.disabled = True
+
+        await interaction.response.edit_message(
+            content=f"**Request Declined:** {self.reqUser.mention} rejected the request for `{self.amount}` Aura.",
+            view=self
+        )
+        aura_manager.unlockUser(str(self.author.id), self.author.name)
+        self.stop()
+
+
+def createJackpotEmbed(userMention: str, jackpotAmount: int, newBalance: int) -> discord.Embed:
+    """Creates a standardized embed for Jackpot announcements."""
+    embed = discord.Embed(
+        title="JACKPOT",
+        description=f"🎉 {userMention} won the jackpot for **+{jackpotAmount:,}** Aura!",
+        color=0xFEE75C, 
+    )
+    embed.add_field(
+        name="New Total Balance",
+        value=f"`{newBalance:,} Aura`",
+        inline=False,
+    )
+    return embed
+
+
 
 # RPS PvP Embed
 class rpsPvPEmbed(discord.ui.View):

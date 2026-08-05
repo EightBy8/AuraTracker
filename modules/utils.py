@@ -29,6 +29,7 @@ def log(message: str, level: str = "INFO") -> None:
         "RPS":         Fore.MAGENTA,    # Rock Paper Scissors against bot
         "RPS_DUEL":    Fore.MAGENTA,    # Rock Paper Scissors PvP
         "FISHING":     Fore.BLUE,       # Fishing game messages
+        "JACKPOT":     Fore.YELLOW      # Jackpot Message
     }
     color = colors.get(level, "")
     print(color + f"[{timestamp}] [{level}] {message}")

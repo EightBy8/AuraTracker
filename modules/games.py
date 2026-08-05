@@ -1,17 +1,67 @@
-import discord
+from math import ceil
 import random
 import time
-from math import ceil
-from modules import aura_manager
-from modules.bot_setup import bot
-from modules.aura_manager import unlockUser, lockUser, isBusy
-from modules.daily_tasks import save_config
-from modules.ui import coinFlipEmbed, blackJackEmbed, higherLowerEmbed, rockPaperScissorsEmbed, rpsChallengeEmbed, rpsPvPEmbed
-from modules.utils import log
 from typing import Optional
+import discord
 
+from modules import aura_manager
+from modules.aura_manager import (
+    AURA_FILE,
+    aura_data,
+    isBusy,
+    lockUser,
+    save_json,
+    unlockUser,
+    update_aura,
+)
+from modules.bot_setup import bot
+from modules.daily_tasks import save_config
+from modules.ui import (
+    blackJackEmbed,
+    coinFlipEmbed,
+    createJackpotEmbed,
+    higherLowerEmbed,
+    rockPaperScissorsEmbed,
+    rpsChallengeEmbed,
+    rpsPvPEmbed,
+    
+)
+from modules.utils import log
 
-# COINFLIP GAME
+JACKPOT_CONFIG = {
+    "ticketPool": 100000,
+    "payoutPercent": 0.25,
+    "enabled": True,
+}
+
+def checkJackpot(userID: int, userName: str, aura: int, botID: int, game: str) -> tuple[bool, int, int]:
+    if not JACKPOT_CONFIG.get("enabled", True) or aura <= 0:
+        return False, 0, aura_data.get(str(userID), 0)
+
+    ticketPool = JACKPOT_CONFIG["ticketPool"]
+    payoutPercent = JACKPOT_CONFIG["payoutPercent"]
+
+    roll = random.randint(1, ticketPool)
+
+    if roll <= aura:
+        botIDStr = str(botID)
+        houseBalance = aura_data.get(botIDStr, 0)
+
+        if houseBalance <= 0:
+            return False, 0, aura_data.get(str(userID), 0)
+
+        jackpotPayout = int(houseBalance * payoutPercent)
+        if jackpotPayout > 0:
+            update_aura(userID, jackpotPayout, userName)
+            update_aura(botID, -jackpotPayout, "The House")
+            save_json(AURA_FILE, aura_data)
+
+        newUserBalance = aura_data.get(str(userID), 0)
+        log(f"USER: {userName} | CHANCE: {aura:,} /{ticketPool:,} | ROLL: {roll:,} | GAME: {game} | HIT: ✔", "JACKPOT")
+        return True, jackpotPayout, newUserBalance
+
+    log(f"USER: {userName} | CHANCE: {aura:,} /{ticketPool:,} | ROLL: {roll:,} | GAME: {game} | HIT: ✘","JACKPOT")
+    return False, 0, aura_data.get(str(userID), 0)
 
 @bot.command(aliases=['cf'])
 async def coinflip(ctx, amount: str):
@@ -19,7 +69,7 @@ async def coinflip(ctx, amount: str):
 
     # Check if user is in a game
     if aura_manager.isBusy(ctx.author.id):
-        return await ctx.send(f"Finish your currnet game first!")
+        return await ctx.send(f"Finish your current game first!")
     
 
     user_id = str(ctx.author.id)
@@ -66,11 +116,30 @@ async def coinflip(ctx, amount: str):
     try:
         if won:
             aura_manager.update_aura(ctx.author.id, amount, ctx.author.display_name)
+            aura_manager.update_aura(bot.user.id, -amount, "The House")
             currentAura += amount
             outcome_text = f"**YOU WIN!** It was **{result.capitalize()}**.\n**✚{amount:,}** AURA!"
             log(f"{ctx.author.name.capitalize()} Won {amount:,} aura.","COINFLIP")
             await ctx.send(f"{ctx.author.mention} > New Balance: `{currentAura:,} Aura`")
             color = 0x6dab18
+
+            jackpotHit, jackpotAmount, newBalance = checkJackpot(
+                userID=ctx.author.id,
+                userName=ctx.author.display_name,
+                aura=amount,
+                botID=bot.user.id,
+                game="COINFLIP"
+            )
+
+            if jackpotHit and jackpotAmount > 0:
+                jackpot_embed = createJackpotEmbed(
+                    userMention=ctx.author.mention,
+                    jackpotAmount=jackpotAmount,
+                    newBalance=newBalance,
+                )
+                await ctx.send(embed=jackpot_embed)
+
+
         else:
             aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
             aura_manager.update_aura(bot.user.id, +amount, "The House")
@@ -94,8 +163,6 @@ async def coinflip(ctx, amount: str):
         aura_manager.unlockUser(ctx.author.id, name=ctx.author.display_name)
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
 # BLACKJACK CARD LOGIC
 def drawCard():
     cards = [2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'K', 'Q', 'A']
@@ -121,16 +188,15 @@ def calculateScore(hand):
     return score
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
 # BLACKJACK GAME
-@bot.command(aliases=['bj'])
+@bot.command(aliases=["bj"])
 async def blackjack(ctx, amount: str):
     authorName = str(ctx.author)
     user_id = str(ctx.author.id)
+    bot_id_str = str(bot.user.id)
 
     if aura_manager.isBusy(ctx.author.id):
-        return await ctx.send(f"Finish your current game first!")
+        return await ctx.send("Finish your current game first!")
 
     currentAura = aura_manager.aura_data.get(user_id, 0)
 
@@ -143,29 +209,38 @@ async def blackjack(ctx, amount: str):
         try:
             amount = int(amount)
         except ValueError:
-            return await ctx.send("Please enter a valid number, 'half', or 'all'.")
+            return await ctx.send(
+                "Please enter a valid number, 'half', or 'all'."
+            )
 
     if amount <= 0:
         return await ctx.send("Please Enter a Valid Amount")
     if currentAura < amount:
-        return await ctx.send(f"You Only Have **{currentAura:,}** Aura") 
+        return await ctx.send(f"You Only Have **{currentAura:,}** Aura")
 
     aura_manager.lockUser(ctx.author.id, name=ctx.author.display_name)
-    
+
     try:
         playerHand = [drawCard(), drawCard()]
         dealerHand = [drawCard(), drawCard()]
 
-        embed = discord.Embed(title="Blackjack", color=0x2b2d31)
-        embed.add_field(name="Your Hand", value=f"{playerHand}\nScore: {calculateScore(playerHand)}")
+        embed = discord.Embed(title="Blackjack", color=0x2B2D31)
+        embed.add_field(
+            name="Your Hand",
+            value=f"{playerHand}\nScore: {calculateScore(playerHand)}",
+        )
         embed.add_field(name="Dealer's Hand", value=f"['{dealerHand[0]}', '❓']")
-        
-        view = blackJackEmbed(ctx.author, amount) 
-        msg = await ctx.send(f"{ctx.author.mention}'s Blackjack game for **{amount:,}** aura", embed=embed, view=view)
+
+        view = blackJackEmbed(ctx.author, amount)
+        msg = await ctx.send(
+            f"{ctx.author.mention}'s Blackjack game for **{amount:,}** aura",
+            embed=embed,
+            view=view,
+        )
 
         playing = True
         log(f"Game started for {authorName.capitalize()}", "BJ_INFO")
-        
+
         while playing:
             current_score = calculateScore(playerHand)
             if current_score >= 21:
@@ -178,25 +253,40 @@ async def blackjack(ctx, amount: str):
             if view.choice == "hit":
                 playerHand.append(drawCard())
                 new_score = calculateScore(playerHand)
-                embed.set_field_at(0, name="Your Hand", value=f"{playerHand}\nScore: {new_score}")
+                embed.set_field_at(
+                    0,
+                    name="Your Hand",
+                    value=f"{playerHand}\nScore: {new_score}",
+                )
                 if new_score >= 21:
                     playing = False
             elif view.choice == "stand":
                 playing = False
             else:
                 # --- TIMEOUT LOSS LOGIC ---
-                aura_manager.update_aura(ctx.author.id, -amount, ctx.author.display_name)
-                aura_manager.update_aura(bot.user.id, +amount, "The House" )
+                aura_manager.update_aura(
+                    ctx.author.id, -amount, ctx.author.display_name
+                )
+                aura_manager.update_aura(bot.user.id, amount, "The House")
+                aura_manager.save_json(
+                    aura_manager.AURA_FILE, aura_manager.aura_data
+                )
 
-                aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
-                
                 new_balance = aura_manager.aura_data.get(user_id, 0)
-                
-                log(f"{authorName.capitalize()} timed out and lost {amount:,} aura", "BLACKJACK")
-                
-                await msg.edit(content=f"**Timed out!** You lost **{amount:,}** Aura.", embed=None, view=None)
-                await ctx.send(f"{ctx.author.mention} > New Balance: `{new_balance:,} Aura`")
-                # await ctx.send(f"`{amount:,}` aura has been added to the bank. ")
+
+                log(
+                    f"{authorName.capitalize()} timed out and lost {amount:,} aura",
+                    "BLACKJACK",
+                )
+
+                await msg.edit(
+                    content=f"**Timed out!** You lost **{amount:,}** Aura.",
+                    embed=None,
+                    view=None,
+                )
+                await ctx.send(
+                    f"{ctx.author.mention} > New Balance: `{new_balance:,} Aura`"
+                )
                 return
 
         # DEALER TURN
@@ -204,53 +294,95 @@ async def blackjack(ctx, amount: str):
         if playerFinal <= 21:
             while calculateScore(dealerHand) < 17:
                 dealerHand.append(drawCard())
-        
+
         dealerFinal = calculateScore(dealerHand)
-        
-# DETERMINE WINNER
-        bot_id_str = str(bot.user.id)
+
+        # DETERMINE WINNER
         if playerFinal > 21:
-            result, change, color = "BUST", -amount, 0x992d22
-            # House collects on player bust
-            aura_manager.update_aura(bot.user.id, amount, "The House")
+            result, change, color = "BUST", -amount, 0x992D22
         elif dealerFinal > 21:
-            result, change, color = "DEALER BUSTED - YOU WIN!", amount, 0x6dab18
+            result, change, color = "DEALER BUSTED - YOU WIN!", amount, 0x6DAB18
+            # JACKPOT CHANCE
+            jackpotHit, jackpotAmount, newBalance = checkJackpot(
+                userID=ctx.author.id,
+                userName=ctx.author.display_name,
+                aura=amount,
+                botID=bot.user.id,
+                game="BLACKJACK"
+            )
+
+            if jackpotHit and jackpotAmount > 0:
+                jackpot_embed = createJackpotEmbed(
+                    userMention=ctx.author.mention,
+                    jackpotAmount=jackpotAmount,
+                    newBalance=newBalance,
+                )
+                await ctx.send(embed=jackpot_embed)
+
         elif playerFinal > dealerFinal:
-            result, change, color = "YOU WIN!", amount, 0x6dab18
+            result, change, color = "YOU WIN!", amount, 0x6DAB18
+            # JACKPOT CHANCE
+            jackpotHit, jackpotAmount, newBalance = checkJackpot(
+                userID=ctx.author.id,
+                userName=ctx.author.display_name,
+                aura=amount,
+                botID=bot.user.id,
+                game="BLACKJACK"
+            )
+
+            if jackpotHit and jackpotAmount > 0:
+                jackpot_embed = createJackpotEmbed(
+                    userMention=ctx.author.mention,
+                    jackpotAmount=jackpotAmount,
+                    newBalance=newBalance,
+                )
+                await ctx.send(embed=jackpot_embed)
         elif playerFinal < dealerFinal:
-            result, change, color = "DEALER WINS", -amount, 0x992d22
-            # House collects on dealer win
-            aura_manager.update_aura(bot.user.id, amount, "The House")
+            result, change, color = "DEALER WINS", -amount, 0x992D22
         else:
-            result, change, color = "PUSH (TIE)", 0, 0x7289da
+            result, change, color = "PUSH (TIE)", 0, 0x7289DA
 
-        # UPDATE PLAYER AURA
+        # UPDATE AURA BALANCES
         if change != 0:
-            aura_manager.update_aura(ctx.author.id, change, ctx.author.display_name)
-            aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
+            # Update Player (takes negative on loss, positive on win)
+            aura_manager.update_aura(
+                ctx.author.id, change, ctx.author.display_name
+            )
+            # Update House (takes exact opposite of player change)
+            aura_manager.update_aura(bot.user.id, -change, "The House")
+            # Save once after both updates
+            aura_manager.save_json(
+                aura_manager.AURA_FILE, aura_manager.aura_data
+            )
 
-        # Get  balances for the final message
+        # Get balances for the final message
         new_balance = aura_manager.aura_data.get(user_id, 0)
         bot_balance = aura_manager.aura_data.get(bot_id_str, 0)
 
         # FINAL UI UPDATE
         finalEmbed = discord.Embed(title=f"Blackjack - {result}", color=color)
-        finalEmbed.add_field(name="Your Hand", value=f"{playerHand}\nScore: {playerFinal}")
-        finalEmbed.add_field(name="Dealer Hand", value=f"{dealerHand}\nScore: {dealerFinal}")
-        
+        finalEmbed.add_field(
+            name="Your Hand", value=f"{playerHand}\nScore: {playerFinal}"
+        )
+        finalEmbed.add_field(
+            name="Dealer Hand", value=f"{dealerHand}\nScore: {dealerFinal}"
+        )
+
         await msg.edit(embed=finalEmbed, view=None)
 
         status_msg = f"{ctx.author.mention} > New Balance: `{new_balance:,} Aura`"
-        
+
         if change < 0:
             status_msg += f"\n`{amount:,}` aura added to the bank."
-            
+
         await ctx.send(status_msg)
+
     except Exception as e:
         log(f"Blackjack Error: {e}", "ERROR")
     finally:
         aura_manager.unlockUser(ctx.author.id, name=ctx.author.display_name)
-
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# HIGHLOW GAME
 @bot.command(aliases=['hl'])
 async def higherlower(ctx, amount: str):
     authorName = str(ctx.author)
@@ -320,6 +452,7 @@ async def higherlower(ctx, amount: str):
                     profit = pot - amount
                     if profit != 0:
                         aura_manager.update_aura(ctx.author.id, profit, ctx.author.display_name)
+                        aura_manager.update_aura(bot.user.id, -profit, "The House")
                         aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
                     
                     log(f"{authorName.capitalize()} cashed out HL on round {turn} at {pot:,}", "HIGHERLOWER")
@@ -356,7 +489,26 @@ async def higherlower(ctx, amount: str):
                     log(f"{authorName.capitalize()} Reached round 5.", "HIGHERLOWER")
                     profit = pot - amount
                     aura_manager.update_aura(ctx.author.id, profit, ctx.author.display_name)
+                    aura_manager.update_aura(bot.user.id, -profit, "The House")
                     aura_manager.save_json(aura_manager.AURA_FILE, aura_manager.aura_data)
+
+
+                    # JACKPOT CHANCE
+                    jackpotHit, jackpotAmount, newBalance = checkJackpot(
+                    userID=ctx.author.id,
+                    userName=ctx.author.display_name,
+                    aura=amount,
+                    botID=bot.user.id,
+                    game="HIGHLOW"
+                    )
+
+                    if jackpotHit and jackpotAmount > 0:
+                        jackpot_embed = createJackpotEmbed(
+                            userMention=ctx.author.mention,
+                            jackpotAmount=jackpotAmount,
+                            newBalance=newBalance,
+                        )
+                        await ctx.send(embed=jackpot_embed)
                     
                     embed.title = "MAX WINS REACHED!"
                     embed.color = 0x6dab18
@@ -570,23 +722,16 @@ async def rockPaperScissors(ctx, opponent: Optional[discord.Member] = None, amou
     aura_manager.lockUser(ctx.author.id, name = ctx.author.display_name)
     log(f"{ctx.author.display_name} Started RPS game against The House", "RPS")
 
-
-
     embed = discord.Embed(title="Rock Paper Scissors", color=0xFFFFFF)
     embed.add_field(name=f"{ctx.author.display_name}", value="Selecting...", inline=True)
     embed.add_field(name="vs", value="|", inline=True)
     embed.add_field(name="The House", value="Thinking...", inline=True)
     embed.set_footer(text=f"Stake: {amount:,} Aura")
 
-
     view = rockPaperScissorsEmbed(ctx.author, amount)
     msg = await ctx.send(embed=embed, view=view)
     
     await view.wait()
-
-
-
-        
 
     try:
         # Timeout Logic
@@ -621,6 +766,24 @@ async def rockPaperScissors(ctx, opponent: Optional[discord.Member] = None, amou
             log(f"{ctx.author.display_name} Won {amount:,} aura", "RPS")
             change = amount
             color = 0x6dab18
+            aura_manager.update_aura(bot.user.id, -amount, "The House")
+
+            # JACKPOT CHANCE
+            jackpotHit, jackpotAmount, newBalance = checkJackpot(
+                userID=ctx.author.id,
+                userName=ctx.author.display_name,
+                aura=amount,
+                botID=bot.user.id,
+                game="RPS"
+            )
+
+            if jackpotHit and jackpotAmount > 0:
+                jackpot_embed = createJackpotEmbed(
+                    userMention=ctx.author.mention,
+                    jackpotAmount=jackpotAmount,
+                    newBalance=newBalance,
+                )
+                await ctx.send(embed=jackpot_embed)
         
         else:
             resultText = (f"You **LOSE**. {botChoice} beats {userChoice}")

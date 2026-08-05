@@ -14,8 +14,15 @@
         "{mention} guessed the song within the first 0.5 seconds. `+{amount}` Aura.",
         "{mention} corrected the GPS and was actually right. `+{amount}` Aura.",
         "{mention} stopped the microwave at exactly 0:01. `+{amount}` Aura.",
-        "{mention} caught the waiter's attention with just a slight nod. `+{amount}` Aura."
-
+        "{mention} caught the waiter's attention with just a slight nod. `+{amount}` Aura.",
+        "{mention} perfectly opened a bag of chips and got `+{amount}`",
+        "{mention} threw a random trash ball into the bin from across the room. `+{amount}` Aura.",
+        "{mention} carried all 12 grocery bags in one trip. `+{amount}` Aura.",
+        "{mention} hit a green wave of 6 traffic lights in a row. `+{amount}` Aura.",
+        "{mention} plugged in the HDMI cable behind the TV blind on the first try. `+{amount}` Aura.",
+        "{mention} peeled an orange in one unbroken piece. `+{amount}` Aura.",
+        "{mention} got the extra nugget in the 10-piece box. `+{amount}` Aura.",
+        "{mention} caught the elevator doors right as they were closing. `+{amount}` Aura."
     ],
 
     "loss": [
@@ -35,6 +42,14 @@
         "{mention} tried to kick a ball and missed entirely. `{amount}` Aura.",
         "{mention} called their teacher 'Mom' in front of the whole class. `{amount}` Aura.",
         "{mention} walked into a glass door because it was too clean. `{amount}` Aura.",
-        "{mention} realized their mic was unmuted while they were singing poorly. `{amount}` Aura."
+        "{mention} realized their mic was unmuted while they were singing poorly. `{amount}` Aura.",
+        "{mention} pushed a door that clearly said PULL in giant letters. `{amount}` Aura.",
+        "{mention} tried to cough to cover up a fart and timed it wrong. `{amount}` Aura.",
+        "{mention} put the cereal in the fridge and the milk in the pantry. `{amount}` Aura.",
+        "{mention} held the door open for someone who was still 50 feet away. `{amount}` Aura.",
+        "{mention} tried to casually lean on a counter and missed it completely. `{amount}` Aura.",
+        "{mention} tripped going UP the stairs in front of a crowd. `{amount}` Aura.",
+        "{mention} said 'I love you' at the end of a phone call with their landlord. `{amount}` Aura.",
+        "{mention} typed `sl` instead of `ls` and had to wait for the train to go by. `{amount}` Aura."
     ]
 }

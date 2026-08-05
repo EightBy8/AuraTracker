@@ -25,9 +25,35 @@ winstreakData: Dict[str, int] = {}
 # Global Variables
 OWNER_IDS: list[int] = []
 CHANNEL_ID: int | None = None
+RESET_DAY: int = 1  # Default monthly reset day
+GOLDEN_ROLE_ID: int | None = None
+
+# ---- Golden Role Manager ----
+def set_golden_role_id(role_id: int) -> None:
+    """Set and persist the Golden Button Role ID."""
+    global GOLDEN_ROLE_ID
+    GOLDEN_ROLE_ID = int(role_id)
+    config = load_json(CONFIG_FILE)
+    config["GOLDEN_ROLE_ID"] = GOLDEN_ROLE_ID
+    save_json(CONFIG_FILE, config)
+    log(f"Set Golden Role ID to {GOLDEN_ROLE_ID}", "INFO")
+
+
+def get_golden_role_id() -> int | None:
+    """Get the active Golden Button Role ID."""
+    global GOLDEN_ROLE_ID
+    if GOLDEN_ROLE_ID is None:
+        config = load_json(CONFIG_FILE)
+        raw_id = config.get("GOLDEN_ROLE_ID")
+        if raw_id is not None:
+            try:
+                GOLDEN_ROLE_ID = int(raw_id)
+            except (ValueError, TypeError):
+                log(f"Invalid GOLDEN_ROLE_ID in config: {raw_id}", "ERROR")
+                GOLDEN_ROLE_ID = None
+    return GOLDEN_ROLE_ID
 
 # ---- Owner/Admin Manager
-
 def add_owner(owner_id : str) -> None:
     global OWNER_IDS
     if owner_id not in OWNER_IDS:
@@ -70,7 +96,7 @@ def load_aura() -> None:
     loaded: Dict[str, Any] = load_json(AURA_FILE)
     aura_data.clear()
     aura_data.update({k: int(v) for k, v in loaded.items()})  # coerce to int
-    log("Aura data loaded", "SUCCESS" if aura_data else "WARNING")
+    log("'aura' loaded", "SUCCESS" if aura_data else "WARNING")
 
 
 def load_history() -> Dict[str, Any]:
@@ -89,7 +115,6 @@ def ensure_today(history: Dict[str, Any]) -> None:
 
 
 # ---- Aura Command Helper ----
-
 def set_aura(user_id: int, amount: int) -> None:
     """Set a user's aura to an explicit value."""
     aura_data[str(user_id)] = int(amount)
@@ -141,8 +166,6 @@ def getWinstreak(userID: int) -> int:
     """Get a user's winstreak"""
     return winstreakData.get(str(userID), 0)
 
-
-
 # ---- Aura-count-per-sender (positive / negative counts) ----
 def load_aura_count() -> None:
     """Load counters for how much aura each sender has given (POS/NEG)."""
@@ -153,12 +176,10 @@ def load_aura_count() -> None:
     }
     log("'auraCount' data loaded", "SUCCESS" if user_aura_count else "WARNING")
 
-
 def save_aura_count() -> None:
     """Persist the sender counters to disk."""
     save_json(AURACOUNTER_FILE, user_aura_count)
     log("Saved aura counts to file", "SUCCESS")
-
 
 def adjust_sender_count(sender_id: int, field: str, delta: int) -> None:
     """
@@ -185,17 +206,60 @@ def get_negative_leaderboard() -> list[tuple[str, int]]:
         reverse=True,
     )
 
+def resetAllAura(exemptId: int | None = None) -> None:
+    """Reset all aura entries, preserving the bot user ID by default."""
+    from modules.bot_setup import bot as discordBot
+
+    global aura_data
+    if exemptId is None:
+        botUser = discordBot.user
+        if botUser is None:
+            log(
+                "Bot user is not available yet; cannot determine exempt ID for aura reset.",
+                "ERROR",
+            )
+            return
+        exemptId = botUser.id
+
+    exemptKey = str(exemptId)
+    preservedValue = aura_data.get(exemptKey)
+
+    aura_data.clear()
+    if preservedValue is not None:
+        aura_data[exemptKey] = preservedValue
+
+    save_json(AURA_FILE, aura_data)
+    log(
+        f"Reset all aura data, preserving bot user ID {exemptKey}.",
+        "SUCCESS",
+    )
+
+
+# ---- Golden Button Streak ----
+def getGoldenStreak() -> int:
+    config = load_json(CONFIG_FILE)
+    return config.get("goldenStreak", 1)
+
+def incrementGoldenStreak() -> None:
+    config = load_json(CONFIG_FILE)
+    config["goldenStreak"] = config.get("goldenStreak", 1) + 1
+    save_json(CONFIG_FILE, config)
+
+def resetGoldenStreak() -> None:
+    config = load_json(CONFIG_FILE)
+    config["goldenStreak"] = 1
+    save_json(CONFIG_FILE, config)
 
 # ---- Game Lock/Unlock ----
 activePlayers = set()
 
 def isBusy(user_id):
-    return user_id in activePlayers
-def lockUser(user_id, name="Unknown",):
-    activePlayers.add(user_id)
+    return str(user_id) in activePlayers
+
+def lockUser(user_id, name="Unknown"):
+    activePlayers.add(str(user_id))
     log(f"{name} has been locked", "INFO")
+
 def unlockUser(user_id, name="Unknown"):
-    activePlayers.discard(user_id)
+    activePlayers.discard(str(user_id))
     log(f"{name} has been unlocked", "INFO")
-
-

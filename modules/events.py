@@ -28,14 +28,16 @@ async def on_ready():
             "SUCCESS",
         )
 
+    versionNumber = "v2.6.0"
     # VERSION NUMBER
     await bot.change_presence(
-        status=discord.Status.online, activity=discord.Game(name="v2.5.0")
+        status=discord.Status.online,
+        activity=discord.Game(name=versionNumber)
     )
-
+    log(f"Logged in as {bot.user} | {versionNumber}", "SUCCESS")
 
 @bot.event
-async def on_reaction_add(
+async def on_reaction_add( 
     reaction: discord.Reaction, user: discord.User | discord.Member
 ) -> None:
     """
