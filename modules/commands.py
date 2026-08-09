@@ -289,16 +289,14 @@ async def request_aura(ctx: commands.Context, member: discord.Member, amount: st
         await ctx.send(f"{member.display_name} only has `{giverAura}` Aura!")
         return
 
-    # Lock both users with their matching IDs and names
+    # Lock requesting user
     aura_manager.lockUser(receiverId, ctx.author.name)
 
     # Send request view
     view = RequestAuraEmbed(author=ctx.author, reqUser=member, amount=parsedAmount)
-    msg = await ctx.send(
-        f"{member.mention}, `{ctx.author.display_name}` is requesting `{parsedAmount}` Aura from you!",
-        view=view
-    )
+    msg = await ctx.send(f"{member.mention}, `{ctx.author.display_name}` is requesting `{parsedAmount}` Aura from you!", view=view)
     view.message = msg
+    log(f"{ctx.author.display_name} requested {parsedAmount} aura from {member.display_name}", "INFO")
 
 @bot.command()
 async def give_aura(ctx: commands.Context, member: discord.Member, amount: str) -> None:

@@ -370,10 +370,9 @@ class RequestAuraEmbed(discord.ui.View):
             if isinstance(item, discord.ui.Button):
                 item.disabled = True
 
-        await interaction.response.edit_message(
-            content=f"**Request Accepted!** {self.reqUser.mention} sent `{self.amount}` Aura to {self.author.mention}.",
-            view=self
-        )
+        await interaction.response.edit_message(content=f"**Request Accepted!** {self.reqUser.mention} sent `{self.amount}` Aura to {self.author.mention}.",view=self)
+        log(f"{self.reqUser.display_name} sent {self.amount} aura to {self.author.display_name}", "REQUEST")
+
         self.stop()
 
     @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
@@ -390,6 +389,8 @@ class RequestAuraEmbed(discord.ui.View):
             content=f"**Request Declined:** {self.reqUser.mention} rejected the request for `{self.amount}` Aura.",
             view=self
         )
+
+        log(f"{self.reqUser.display_name} declined the {self.amount} aura request from {self.author.display_name}", "REQUEST")
         aura_manager.unlockUser(str(self.author.id), self.author.name)
         self.stop()
 

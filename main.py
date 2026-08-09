@@ -101,7 +101,7 @@ async def on_ready():
     # Run role cleanup now that cache/gateway is ready
     await clear_golden_roles()
 
-    versionNumber = "v2.6.0"
+    versionNumber = "v2.6.1"
     await bot.change_presence(
         status=discord.Status.online,
         activity=discord.Game(name=versionNumber)
